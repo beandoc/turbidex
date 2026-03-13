@@ -668,10 +668,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Proper CSV escaping function (RFC 4180)
     function escapeCSV(val) {
-        if (val === null || val === undefined) return '""';
+        if (val === null || val === undefined || val === '') return '""';
         
         let stringVal = '';
-        if (typeof val === 'object') {
+        if (typeof val === 'object' && !Array.isArray(val)) {
             stringVal = JSON.stringify(val);
         } else {
             stringVal = String(val);
@@ -693,6 +693,9 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     function formatComplexData(key, val) {
+        if (!val) return "";
+        
+        // Handle nested clinical logs/events
         if ((key === 'periodic_logs' || key === 'clinical_events') && Array.isArray(val)) {
             return val.map(item => {
                 return Object.entries(item)
@@ -701,6 +704,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     .join(' | ');
             }).join(' || ');
         }
+        
+        // Handle standard arrays like comorbidities/symptoms
+        if (Array.isArray(val)) {
+            return val.join(' | ');
+        }
+        
         return val;
     }
 
