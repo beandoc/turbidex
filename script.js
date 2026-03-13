@@ -321,66 +321,115 @@ document.addEventListener('DOMContentLoaded', () => {
     let periodicLogs = [];
     const addLogBtn = document.getElementById('addLogBtn');
     const periodicLogList = document.getElementById('periodicLogList');
-    const emptyPeriodicRow = document.getElementById('emptyPeriodicRow');
-    const periodicLogJsonInput = document.getElementById('periodic_log_json');
+    const vitalsLogList = document.getElementById('vitalsLogList');
+    const emptyVitalsRow = document.getElementById('emptyVitalsRow');
 
     function renderPeriodicLogs() {
         periodicLogList.innerHTML = '';
-        if (periodicLogs.length === 0) {
+        vitalsLogList.innerHTML = '';
+        
+        const machineLogs = periodicLogs.filter(l => l.ufr || l.qb || l.cumUf);
+        const vitalsLogs = periodicLogs.filter(l => l.sbp || l.hr);
+
+        // Render Machine Logs
+        if (machineLogs.length === 0) {
             periodicLogList.appendChild(emptyPeriodicRow);
             emptyPeriodicRow.style.display = 'table-row';
-            periodicLogJsonInput.value = '[]';
-            updateDashboard();
-            return;
+        } else {
+            emptyPeriodicRow.style.display = 'none';
+            machineLogs.sort((a, b) => a.time.localeCompare(b.time)).forEach((log, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${log.time}</td>
+                    <td>${log.ufr || ''}</td>
+                    <td>${log.cumUf || ''}</td>
+                    <td>${log.qb || ''}</td>
+                    <td style="font-weight: bold; color: ${log.infusion === 'Yes' ? '#e74c3c' : 'inherit'}">${log.infusion}</td>
+                `;
+                const tdAction = document.createElement('td');
+                const delBtn = createDeleteBtn(() => {
+                    const fullIndex = periodicLogs.indexOf(log);
+                    if (fullIndex > -1) periodicLogs.splice(fullIndex, 1);
+                    renderPeriodicLogs();
+                });
+                tdAction.appendChild(delBtn);
+                tr.appendChild(tdAction);
+                periodicLogList.appendChild(tr);
+            });
         }
 
-        emptyPeriodicRow.style.display = 'none';
-        periodicLogs.sort((a, b) => a.time.localeCompare(b.time));
-
-        periodicLogs.forEach((log, index) => {
-            const tr = document.createElement('tr');
-            
-            // Calculate MAP
-            const sbp = parseFloat(log.sbp);
-            const dbp = parseFloat(log.dbp);
-            const map = (!isNaN(sbp) && !isNaN(dbp)) ? Math.round((sbp + 2 * dbp) / 3) : '';
-
-            tr.innerHTML = `
-                <td style="${log._isAuto ? 'color: #95a5a6; font-style: italic;' : ''}">${log.time}${log._isAuto ? ' (A)' : ''}</td>
-                <td>${log.ufr || ''}</td>
-                <td>${log.cumUf || ''}</td>
-                <td>${log.qb || ''}</td>
-                <td>${log.sbp ? (log.sbp + '/' + log.dbp) : ''}</td>
-                <td>${map}</td>
-                <td>${log.hr || ''}</td>
-                <td style="font-weight: bold; color: ${log.infusion === 'Yes' ? '#e74c3c' : 'inherit'}">${log.infusion}</td>
-            `;
-
-            const tdAction = document.createElement('td');
-            const delBtn = document.createElement('button');
-            delBtn.type = 'button';
-            delBtn.style.color = 'red';
-            delBtn.style.background = 'none';
-            delBtn.style.border = 'none';
-            delBtn.style.fontSize = '1.2rem';
-            delBtn.style.padding = '5px';
-            delBtn.innerHTML = '&times;';
-            delBtn.title = 'Remove Log';
-            delBtn.addEventListener('click', () => {
-                periodicLogs.splice(index, 1);
-                renderPeriodicLogs();
+        // Render Vitals Logs
+        if (vitalsLogs.length === 0) {
+            vitalsLogList.appendChild(emptyVitalsRow);
+            emptyVitalsRow.style.display = 'table-row';
+        } else {
+            emptyVitalsRow.style.display = 'none';
+            vitalsLogs.sort((a, b) => a.time.localeCompare(b.time)).forEach((log, index) => {
+                const tr = document.createElement('tr');
+                const sbp = parseFloat(log.sbp);
+                const dbp = parseFloat(log.dbp);
+                const map = (!isNaN(sbp) && !isNaN(dbp)) ? Math.round((sbp + 2 * dbp) / 3) : '';
+                
+                tr.innerHTML = `
+                    <td style="${log._isAuto ? 'color: #95a5a6; font-style: italic;' : ''}">${log.time}${log._isAuto ? ' (A)' : ''}</td>
+                    <td>${log.sbp ? (log.sbp + '/' + log.dbp) : ''}</td>
+                    <td>${map}</td>
+                    <td>${log.hr || ''}</td>
+                `;
+                const tdAction = document.createElement('td');
+                const delBtn = createDeleteBtn(() => {
+                    const fullIndex = periodicLogs.indexOf(log);
+                    if (fullIndex > -1) periodicLogs.splice(fullIndex, 1);
+                    renderPeriodicLogs();
+                });
+                tdAction.appendChild(delBtn);
+                tr.appendChild(tdAction);
+                vitalsLogList.appendChild(tr);
             });
-            tdAction.appendChild(delBtn);
-            tr.appendChild(tdAction);
-
-            periodicLogList.appendChild(tr);
-        });
+        }
         
         periodicLogJsonInput.value = JSON.stringify(periodicLogs);
         updateDashboard();
     }
 
+    function createDeleteBtn(onClick) {
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.style.color = 'red';
+        delBtn.style.background = 'none';
+        delBtn.style.border = 'none';
+        delBtn.style.fontSize = '1.2rem';
+        delBtn.style.padding = '5px';
+        delBtn.innerHTML = '&times;';
+        delBtn.addEventListener('click', onClick);
+        return delBtn;
+    }
+
     if (addLogBtn) {
+        // Auto-calculate UFR/CumUF helper
+        function suggestMachineValues() {
+            const targetUf = parseFloat(document.querySelector('input[name="target_uf_volume"]').value);
+            const durationStr = document.querySelector('input[name="planned_duration"]').value;
+            const durationArr = (durationStr || "").match(/\d+/);
+            const duration = durationArr ? parseFloat(durationArr[0]) : 4;
+            
+            if (!isNaN(targetUf) && duration > 0) {
+                const ufr = Math.round(targetUf / duration);
+                const logUfr = document.getElementById('log_ufr');
+                const logCumUf = document.getElementById('log_cum_uf');
+                
+                if (logUfr && !logUfr.value) logUfr.value = ufr;
+                
+                // Estimate Cum UF based on time passed
+                if (sessionStartTime) {
+                    const hoursPassed = (new Date() - sessionStartTime) / (1000 * 60 * 60);
+                    if (logCumUf && !logCumUf.value) logCumUf.value = Math.round(ufr * hoursPassed);
+                }
+            }
+        }
+
+        document.getElementById('log_time').addEventListener('focus', suggestMachineValues);
+
         addLogBtn.addEventListener('click', () => {
             const time = document.getElementById('log_time').value;
             const ufr = document.getElementById('log_ufr').value;
@@ -390,12 +439,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!time) {
                 alert('Please specify the time for the log entry.');
-                return;
-            }
-
-            // Enforcement of high-quality research data: Check if vitals are missing
-            if (!ufr && !qb && !cumUf && !infusion) {
-                alert('Informative Machine Logs require at least one machine parameter (UFR, Qb, or UF).');
                 return;
             }
 
@@ -516,13 +559,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (document.getElementById('uhid')) document.getElementById('uhid').value = p.uhid || '';
                 if (document.getElementById('name')) document.getElementById('name').value = p.name || '';
                 if (document.getElementById('age')) document.getElementById('age').value = p.age || '';
-                if (document.querySelector('input[name="diagnosis"]')) document.querySelector('input[name="diagnosis"]').value = p.diagnosis || '';
+                if (document.querySelector('input[name="diagnosis"]')) document.querySelector('input[name="diagnosis"]').value = p.diagnosis || 'CKD5D';
                 if (document.querySelector('select[name="diabetes"]')) document.querySelector('select[name="diabetes"]').value = p.diabetes || '';
                 if (document.querySelector('select[name="dialysis_frequency"]')) document.querySelector('select[name="dialysis_frequency"]').value = p.dialysis_frequency || '';
                 if (document.getElementById('tx_vintage')) document.getElementById('tx_vintage').value = p.tx_vintage || '';
                 if (document.querySelector('select[name="type_of_access"]')) document.querySelector('select[name="type_of_access"]').value = p.type_of_access || '';
                 if (document.querySelector('select[name="anticoagulation"]')) document.querySelector('select[name="anticoagulation"]').value = p.anticoagulation || 'Select...';
                 
+                // Persistent medical fields
+                if (document.querySelector('input[name="baseline_creatinine"]')) document.querySelector('input[name="baseline_creatinine"]').value = p.baseline_creatinine || p.last_creatinine || '';
+                if (document.querySelector('input[name="patient_dry_weight"]')) document.querySelector('input[name="patient_dry_weight"]').value = p.patient_dry_weight || '';
+                
+                // his current session post HD weight will be last post HD weight of subsequent HD session
+                if (document.querySelector('input[name="last_post_dialysis_weight"]')) {
+                    document.querySelector('input[name="last_post_dialysis_weight"]').value = p.post_hd_weight || p.last_post_dialysis_weight || '';
+                }
+
                 // Carry over previous session IDH outcome to the 'previous IDH' question
                 if (p.idh_occurred || p.prev_idh) {
                     const prevIdhVal = p.idh_occurred === 'yes' ? 'Yes' : p.idh_occurred === 'no' ? 'No' : p.prev_idh;
@@ -533,10 +585,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Show notification
-                showToast(`Loaded baseline demographics for: ${selectedName}`, "#3498db");
+                showToast(`Loaded clinical baseline for: ${selectedName}`, "#3498db");
             } else {
                 // Clear the auto-fill fields if 'new profile' is chosen
                 form.reset();
+                if (document.querySelector('input[name="diagnosis"]')) document.querySelector('input[name="diagnosis"]').value = 'CKD5D';
                 const preIdhRbs = document.querySelectorAll(`input[name="prev_idh"]`);
                 preIdhRbs.forEach(rb => rb.checked = false);
             }
@@ -576,9 +629,12 @@ document.addEventListener('DOMContentLoaded', () => {
         data.symptoms = Array.from(formData.getAll('symptoms'));
         data.interventions = Array.from(formData.getAll('interventions'));
         
-        // Embed periodic logs and clinical events
+        // Embed periodic logs and clinical events as clean arrays (Research Quality JSON)
         data.periodic_logs = periodicLogs;
         data.clinical_events = events;
+        delete data.periodic_log_json; // Remove the redundant temporary UI strings
+        delete data.event_log_json;
+        
         data.timestamp = new Date().toISOString();
 
         console.log('Attempting Firebase Save:', data);
@@ -630,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'uhid', 'name', 'age', 'sex', 'diagnosis', 'diabetes', 'dialysis_frequency', 'tx_vintage', 'type_of_access', 'anticoagulation',
         'last_blood_transfusion_date', 'last_blood_transfusion_amount', 'comorbidities',
         'dialysate_temp', 'dialysate_na', 'pre_hd_bp_meds', 'target_uf_volume', 'start_sbp', 'start_dbp', 'pulse_rate', 
-        'ejection_fraction', 'predialysis_weight', 'patient_dry_weight', 'last_post_dialysis_weight',
+        'ejection_fraction', 'predialysis_weight', 'patient_dry_weight', 'last_post_dialysis_weight', 'post_hd_weight',
         'last_creatinine', 'baseline_creatinine', 'albumin', 'hematocrit', 'hemoglobin',
         'planned_transfusion', 'planned_prbc', 'planned_transfusion_start', 'planned_transfusion_end', 'planned_transfusion_rate',
         'idh_occurred', 'prev_idh', 'periodic_logs', 'clinical_events'

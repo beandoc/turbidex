@@ -95,7 +95,7 @@
                         </div>
                         <div class="form-group">
                             <label>Primary Diagnosis</label>
-                            <input type="text" name="diagnosis" value="CKD 5D">
+                            <input type="text" name="diagnosis" value="CKD5D">
                         </div>
                         <div class="form-group">
                             <label>Diabetes</label>
@@ -208,16 +208,16 @@
                             <input type="number" name="ejection_fraction" placeholder="e.g. 45" min="10" max="100">
                         </div>
                         <div class="form-group">
-                            <label>Predialysis Weight (kg) *</label>
-                            <input type="number" step="0.1" name="predialysis_weight" required>
-                        </div>
-                        <div class="form-group">
                             <label>Patient Dry Weight (kg) *</label>
                             <input type="number" step="0.1" name="patient_dry_weight" required>
                         </div>
                         <div class="form-group">
                             <label>Last Post-Dialysis Weight (kg)</label>
                             <input type="number" step="0.1" name="last_post_dialysis_weight">
+                        </div>
+                        <div class="form-group">
+                            <label>Predialysis Weight (kg) * (current session)</label>
+                            <input type="number" step="0.1" name="predialysis_weight" required>
                         </div>
                     </div>
                 </div>
@@ -290,20 +290,36 @@
                                     <th>UFR (ml/h)</th>
                                     <th>Cum. UF (ml)</th>
                                     <th>Qb (ml/min)</th>
-                                    <th>BP (SBP/DBP)</th>
-                                    <th>MAP</th>
-                                    <th>HR</th>
                                     <th>Active Infusion</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody id="periodicLogList">
-                                <tr id="emptyPeriodicRow"><td colspan="9" style="color:#999; font-style:italic;">No periodic logs added yet. Add machine variables above.</td></tr>
+                                <tr id="emptyPeriodicRow"><td colspan="6" style="color:#999; font-style:italic;">No periodic logs added yet. Add machine variables above.</td></tr>
                             </tbody>
                         </table>
                     </div>
                     <!-- Hidden input to store JSON string of logs for form submission -->
                     <input type="hidden" name="periodic_log_json" id="periodic_log_json" value="[]">
+
+                    <!-- NEW: Vitals Log Table -->
+                    <h3 style="margin-top: 1.5rem; color: #4a5568; font-size: 0.95rem;">Vitals History (Slider & Auto-Capture)</h3>
+                    <div class="event-list-container" style="overflow-x: auto; margin-bottom: 2rem;">
+                        <table class="data-table" id="vitalsLogTable">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>BP (SBP/DBP)</th>
+                                    <th>MAP</th>
+                                    <th>HR</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vitalsLogList">
+                                <tr id="emptyVitalsRow"><td colspan="5" style="color:#999; font-style:italic;">No vitals captured yet. Use the capture button or wait for auto-capture.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
 
                     <div class="form-section" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
                         <h2 style="font-size: 1.1rem; margin-top: 0;">Current HD Blood Transfusion Plan</h2>
@@ -387,6 +403,10 @@
                                     <label class="radio-option"><input type="radio" name="prev_idh" value="No"> No</label>
                                     <label class="radio-option"><input type="radio" name="prev_idh" value="Not known"> Not Known</label>
                                 </div>
+                            </div>
+                            <div class="form-group">
+                                <label style="font-weight: bold; color: var(--primary-color);">Post-HD Weight (kg)</label>
+                                <input type="number" step="0.1" name="post_hd_weight" placeholder="Weight at session end">
                             </div>
 
                             <div class="form-group full-width">
