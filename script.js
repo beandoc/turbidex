@@ -695,9 +695,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function formatComplexData(key, val) {
         if (!val) return "";
         
+        let processedVal = val;
+        // Backward compatibility: If it's a string that looks like a JSON array, parse it
+        if (typeof val === 'string' && val.startsWith('[') && val.endsWith(']')) {
+            try { processedVal = JSON.parse(val); } catch(e) { processedVal = val; }
+        }
+
         // Handle nested clinical logs/events
-        if ((key === 'periodic_logs' || key === 'clinical_events') && Array.isArray(val)) {
-            return val.map(item => {
+        if ((key === 'periodic_logs' || key === 'clinical_events') && Array.isArray(processedVal)) {
+            return processedVal.map(item => {
                 return Object.entries(item)
                     .filter(([k]) => !k.startsWith('_'))
                     .map(([k, v]) => `${k}: ${v}`)
@@ -706,11 +712,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Handle standard arrays like comorbidities/symptoms
-        if (Array.isArray(val)) {
-            return val.join(' | ');
+        if (Array.isArray(processedVal)) {
+            return processedVal.join(' | ');
         }
         
-        return val;
+        return processedVal;
     }
 
     // Export to CSV
