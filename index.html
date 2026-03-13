@@ -17,11 +17,8 @@
             <p>Predicting Ultrafiltration Tolerance & Hypotension</p>
         </header>
 
-        <div class="tabs">
-            <button type="button" class="tab-btn active" data-tab="setup">1. Session Setup</button>
-            <button type="button" class="tab-btn" data-tab="demographics">2. Patient Info</button>
-            <button type="button" class="tab-btn" data-tab="vitals">3. Pre-HD & Labs</button>
             <button type="button" class="tab-btn" data-tab="intradialytic">4. Intradialytic Events</button>
+            <button type="button" class="tab-btn" data-tab="dashboard">📊 Cloud Dashboard</button>
         </div>
 
         <form id="patientForm">
@@ -130,11 +127,13 @@
                         </div>
                         <div class="form-group">
                             <label>Anticoagulation</label>
-                            <input type="text" name="anticoagulation" placeholder="e.g. Saline, Heparin">
-                        </div>
-                        <div class="form-group">
-                            <label>Secondary Diagnosis / Comorbidities</label>
-                            <input type="text" name="secondary_diagnosis" placeholder="e.g. HTN, T2DM, IHD">
+                            <select name="anticoagulation">
+                                <option value="">Select...</option>
+                                <option value="Saline">Saline</option>
+                                <option value="Heparin">Heparin</option>
+                                <option value="Saline & Heparin">Saline & Heparin</option>
+                                <option value="None">None</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Last Blood Transfusion Date</label>
@@ -249,7 +248,6 @@
                     <button type="button" class="btn-primary next-tab-btn" data-next="intradialytic">Save & Next</button>
                 </div>
             </div>
-
             <!-- TAB 4: Intradialytic Events -->
             <div id="intradialytic" class="tab-content">
                 <div class="form-section">
@@ -265,9 +263,79 @@
                         </div>
                     </div>
 
-                    <h2>Continuous Dialysis Metrics & Vitals Log (Macro-Hemodynamics)</h2>
+                    <h3 style="margin-bottom: 1rem; color: #4a5568; font-size: 0.95rem;">Manual Machine Log Entry (UFR, Qb, etc.)</h3>
+                    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); align-items: end; gap: 8px; margin-bottom: 1rem; font-size: 0.85rem;">
+                        <div class="form-group"><label>Time</label><input type="time" id="log_time"></div>
+                        <div class="form-group"><label>UFR (ml/h)</label><input type="number" id="log_ufr" placeholder="e.g. 631"></div>
+                        <div class="form-group"><label>Cum. UF (ml)</label><input type="number" id="log_cum_uf" placeholder="e.g. 301"></div>
+                        <div class="form-group"><label>Qb (ml/min)</label><input type="number" id="log_qb" placeholder="e.g. 146"></div>
+                        <div class="form-group" style="min-width: 120px;">
+                            <label>Active Infusion?</label>
+                            <select id="log_infusion" style="background:#fff3cd; color:#856404; font-weight:bold;">
+                                <option value="No">No</option>
+                                <option value="Yes">Yes (Bolus/PRBC)</option>
+                            </select>
+                        </div>
+                        <div class="form-group"><button type="button" id="addLogBtn" class="btn-primary" style="padding: 0.6rem;">Add Log</button></div>
+                    </div>
                     
-                    <div style="background: #eef2f5; padding: 1.25rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #cbd5e1;">
+                    <div class="event-list-container" style="overflow-x: auto; margin-bottom: 2rem;">
+                        <table class="data-table" id="periodicLogTable">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>UFR (ml/h)</th>
+                                    <th>Cum. UF (ml)</th>
+                                    <th>Qb (ml/min)</th>
+                                    <th>BP (SBP/DBP)</th>
+                                    <th>MAP</th>
+                                    <th>HR</th>
+                                    <th>Active Infusion</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="periodicLogList">
+                                <tr id="emptyPeriodicRow"><td colspan="9" style="color:#999; font-style:italic;">No periodic logs added yet. Add machine variables above.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Hidden input to store JSON string of logs for form submission -->
+                    <input type="hidden" name="periodic_log_json" id="periodic_log_json" value="[]">
+
+                    <div class="form-section" style="border: 1px solid #cbd5e1; background: #f8fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                        <h2 style="font-size: 1.1rem; margin-top: 0;">Current HD Blood Transfusion Plan</h2>
+                        <div class="grid">
+                            <div class="form-group full-width">
+                                <label>Planned Blood Transfusion in Current HD?</label>
+                                <select id="planned_transfusion" name="planned_transfusion">
+                                    <option value="No">No</option>
+                                    <option value="Yes">Yes</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="planned_transfusion_details" class="grid" style="display: none; margin-top: 1.5rem;">
+                            <div class="form-group">
+                                <label>Number of PRBC (Units)</label>
+                                <input type="number" step="0.1" name="planned_prbc" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Start Time</label>
+                                <input type="time" name="planned_transfusion_start">
+                            </div>
+                            <div class="form-group">
+                                <label>End Time</label>
+                                <input type="time" name="planned_transfusion_end">
+                            </div>
+                            <div class="form-group">
+                                <label>Rate of Transfusion (mL/hr)</label>
+                                <input type="number" step="1" name="planned_transfusion_rate" placeholder="e.g. 120">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: #eef2f5; padding: 1.25rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #cbd5e1;">
+                        <h2 style="margin-bottom: 0.5rem; color: var(--primary-color); font-size: 1.1rem; border-bottom: none;">Continuous Dialysis Metrics & Vitals Log (Macro-Hemodynamics)</h2>
                         <h3 style="margin-bottom: 0.5rem; color: var(--primary-color); font-size: 1rem;">⚡ Quick Vitals Capture</h3>
                         <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Use the sliders for rapid entry. The <strong>exact current time</strong> will be automatically stamped when capturing.</p>
                         
@@ -298,191 +366,175 @@
                             <button type="button" id="quickSaveVitalsBtn" class="btn-primary" style="background-color: var(--accent-color); border: none;">🕒 Capture & Save Exact Vitals</button>
                         </div>
                     </div>
-                    
-                    <h3 style="margin-bottom: 1rem; color: #4a5568; font-size: 0.95rem;">Manual Machine Log Entry (UFR, Qb, etc.)</h3>
-                    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); align-items: end; gap: 8px; margin-bottom: 1rem; font-size: 0.85rem;">
-                        <div class="form-group"><label>Time</label><input type="time" id="log_time"></div>
-                        <div class="form-group"><label>UFR (ml/h)</label><input type="number" id="log_ufr" placeholder="e.g. 631"></div>
-                        <div class="form-group"><label>Cum. UF (ml)</label><input type="number" id="log_cum_uf" placeholder="e.g. 301"></div>
-                        <div class="form-group"><label>Qb (ml/min)</label><input type="number" id="log_qb" placeholder="e.g. 146"></div>
-                        <div class="form-group" style="min-width: 120px;">
-                            <label>Active Infusion?</label>
-                            <select id="log_infusion" style="background:#fff3cd; color:#856404; font-weight:bold;">
-                                <option value="No">No</option>
-                                <option value="Yes">Yes (Bolus/PRBC)</option>
-                            </select>
-                        </div>
-                        <div class="form-group"><button type="button" id="addLogBtn" class="btn-primary" style="padding: 0.6rem;">Add Log</button></div>
-                    </div>
-                    
-                    <div class="event-list-container" style="overflow-x: auto;">
-                        <table class="data-table" id="periodicLogTable">
-                            <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>UFR (ml/h)</th>
-                                    <th>Cum. UF (ml)</th>
-                                    <th>Qb (ml/min)</th>
-                                    <th>BP (SBP/DBP)</th>
-                                    <th>MAP</th>
-                                    <th>HR</th>
-                                    <th>Active Infusion</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="periodicLogList">
-                                <tr id="emptyPeriodicRow"><td colspan="9" style="color:#999; font-style:italic;">No periodic logs added yet. Add machine variables above.</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <!-- Hidden input to store JSON string of logs for form submission -->
-                    <input type="hidden" name="periodic_log_json" id="periodic_log_json" value="[]">
-                </div>
 
-                <div class="form-section">
-                    <h2>IDH Adjudication & Clinical Events</h2>
-                    <div class="grid">
-                        <div class="form-group">
-                            <label style="color: #c0392b; font-weight: bold;">Did IDH Occur in THIS session? *</label>
-                            <div class="radio-group" style="background: #fff5f5; padding: 10px; border-radius: 6px; border: 1px solid #feb2b2;">
-                                <label class="radio-option"><input type="radio" name="idh_occurred" value="yes" required> YES (True Event)</label>
-                                <label class="radio-option"><input type="radio" name="idh_occurred" value="no" required> NO (Tolerance)</label>
+                    <div class="form-section">
+                        <h2>IDH Adjudication & Clinical Events</h2>
+                        <div class="grid">
+                            <div class="form-group">
+                                <label style="color: #c0392b; font-weight: bold;">Did IDH Occur in THIS session? *</label>
+                                <div class="radio-group" style="background: #fff5f5; padding: 10px; border-radius: 6px; border: 1px solid #feb2b2;">
+                                    <label class="radio-option"><input type="radio" name="idh_occurred" value="yes" required> YES (True Event)</label>
+                                    <label class="radio-option"><input type="radio" name="idh_occurred" value="no" required> NO (Tolerance)</label>
+                                </div>
                             </div>
-                        </div>
-                        <div class="form-group">
-                            <label>IDH events in previous HD sessions?</label>
-                            <div class="radio-group">
-                                <label class="radio-option"><input type="radio" name="prev_idh" value="Yes"> Yes</label>
-                                <label class="radio-option"><input type="radio" name="prev_idh" value="No"> No</label>
-                                <label class="radio-option"><input type="radio" name="prev_idh" value="Not known"> Not Known</label>
+                            <div class="form-group">
+                                <label>IDH events in previous HD sessions?</label>
+                                <div class="radio-group">
+                                    <label class="radio-option"><input type="radio" name="prev_idh" value="Yes"> Yes</label>
+                                    <label class="radio-option"><input type="radio" name="prev_idh" value="No"> No</label>
+                                    <label class="radio-option"><input type="radio" name="prev_idh" value="Not known"> Not Known</label>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="form-group full-width">
-                            <label style="margin-bottom: 0.5rem; display: block; color: var(--primary-color);">⚡ Quick-Tap Clinical Events (Auto-Timestamped)</label>
-                            <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Clicking these buttons will instantly log the event with the <strong>current exact time</strong> to the event table below.</p>
+                            <div class="form-group full-width">
+                                <label style="margin-bottom: 0.5rem; display: block; color: var(--primary-color);">⚡ Quick-Tap Clinical Events (Auto-Timestamped)</label>
+                                <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">Clicking these buttons will instantly log the event with the <strong>current exact time</strong> to the event table below.</p>
+                                
+                                <div style="background: #eef2f5; padding: 1rem; border-radius: 8px; border: 1px solid #cbd5e1; display: flex; flex-direction: column; gap: 1rem;">
+                                    <div>
+                                        <strong style="font-size: 0.85rem; color: #4a5568; display: block; margin-bottom: 0.5rem;">Symptoms & Intake:</strong>
+                                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Ate Meal/Snack" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #9b59b6;">Ate Meal/Snack</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Nausea" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Nausea</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Vomiting" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Vomiting</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Cramping" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Cramping</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Lightheadedness" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Lightheadedness</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Syncope" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #e74c3c;">Syncope</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Fever" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Fever</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Chills" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Chills</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <strong style="font-size: 0.85rem; color: #4a5568; display: block; margin-bottom: 0.5rem;">Interventions & Machine Adjustments:</strong>
+                                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Saline Bolus" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #3498db;">Saline Bolus</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="UFR Reduced/Stopped" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #3498db;">UFR Reduced/Stopped</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Qb Adjusted" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #3498db;">Blood Flow (Qb) Adjusted</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Temporary Interruption" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #3498db;">Temporary HD Interruption</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Trendelenburg Position" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #3498db;">Trendelenburg</button>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <strong style="font-size: 0.85rem; color: #4a5568; display: block; margin-bottom: 0.5rem;">Medications & Infusions:</strong>
+                                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Albumin Infusion" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #2c3e50;">Albumin 20%</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Amino Acid Infusion" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #2c3e50;">Amino Acids</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="TPN Infusion" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #2c3e50;">TPN</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="Noradrenaline Infusion" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #2c3e50;">Noradrenaline</button>
+                                            <button type="button" class="btn-secondary quick-event-btn" data-event="NTG Infusion" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #2c3e50;">NTG Infusion</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             
-                            <div style="background: #eef2f5; padding: 1rem; border-radius: 8px; border: 1px solid #cbd5e1; display: flex; flex-direction: column; gap: 1rem;">
-                                <div>
-                                    <strong style="font-size: 0.85rem; color: #4a5568; display: block; margin-bottom: 0.5rem;">Symptoms & Intake:</strong>
-                                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Ate Meal/Snack" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #9b59b6;">Ate Meal/Snack</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Nausea" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Nausea</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Vomiting" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Vomiting</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Cramping" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Cramping</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Lightheadedness" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Lightheadedness</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Syncope" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #e74c3c;">Syncope</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Fever" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Fever</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Chills" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #f39c12;">Chills</button>
+                            <div class="form-group full-width event-logger">
+                                <label>Timestamped Event Log (High-Precision Correlation)</label>
+                                
+                                <div class="event-input-row" style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 1rem; flex-wrap: wrap;">
+                                    <div class="form-group" style="flex: 1; min-width: 120px;">
+                                        <label>Event Time</label>
+                                        <input type="time" step="1" id="event_time" placeholder="HH:MM:SS">
+                                    </div>
+                                    <div class="form-group" style="flex: 1.5; min-width: 150px;">
+                                        <label>Event Type</label>
+                                        <select id="event_type">
+                                            <option value="">Select Event...</option>
+                                            <option value="Hypotensive Dip">Hypotensive Dip</option>
+                                            <option value="Blood Transfusion">Blood Transfusion (PRBCs)</option>
+                                            <option value="Saline Bolus">Saline Bolus Administered</option>
+                                            <option value="UFR Reduced/Stopped">UFR Reduced/Stopped</option>
+                                            <option value="Cramping">Cramping Reported</option>
+                                            <option value="Nausea/Vomiting">Nausea/Vomiting</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="flex: 2; min-width: 200px;">
+                                        <label>Details / Value</label>
+                                        <input type="text" id="event_details" placeholder="e.g., 105/55 or 2 units PRBC">
+                                    </div>
+                                    <div class="form-group">
+                                        <button type="button" id="addEventBtn" class="btn-primary" style="padding: 0.6rem 1rem;">Add Event</button>
                                     </div>
                                 </div>
                                 
-                                <div>
-                                    <strong style="font-size: 0.85rem; color: #4a5568; display: block; margin-bottom: 0.5rem;">Interventions & Machine Adjustments:</strong>
-                                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Saline Bolus" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #3498db;">Saline Bolus</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="UFR Reduced/Stopped" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #3498db;">UFR Reduced/Stopped</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Qb Adjusted" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #3498db;">Blood Flow (Qb) Adjusted</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Temporary Interruption" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #3498db;">Temporary HD Interruption</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Trendelenburg Position" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #3498db;">Trendelenburg</button>
-                                    </div>
+                                <div class="event-list-container">
+                                    <table class="data-table" id="eventTable">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 20%">Time</th>
+                                                <th style="width: 35%">Event Type</th>
+                                                <th style="width: 35%">Details</th>
+                                                <th style="width: 10%">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="eventList">
+                                            <tr id="emptyEventRow"><td colspan="4" style="color:#999; font-style:italic;">No events logged yet.</td></tr>
+                                        </tbody>
+                                    </table>
                                 </div>
-
-                                <div>
-                                    <strong style="font-size: 0.85rem; color: #4a5568; display: block; margin-bottom: 0.5rem;">Medications & Infusions:</strong>
-                                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Albumin Infusion" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #2c3e50;">Albumin 20%</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Amino Acid Infusion" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #2c3e50;">Amino Acids</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="TPN Infusion" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #2c3e50;">TPN</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="Noradrenaline Infusion" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #2c3e50;">Noradrenaline</button>
-                                        <button type="button" class="btn-secondary quick-event-btn" data-event="NTG Infusion" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background-color: #2c3e50;">NTG Infusion</button>
-                                    </div>
-                                </div>
+                                <!-- Hidden input to store JSON string of events for form submission -->
+                                <input type="hidden" name="event_log_json" id="event_log_json" value="[]">
                             </div>
-                        </div>
-                        
-                        <div class="form-group full-width event-logger">
-                            <label>Timestamped Event Log (High-Precision Correlation)</label>
-                            
-                            <div class="event-input-row" style="display: flex; gap: 10px; align-items: flex-end; margin-bottom: 1rem; flex-wrap: wrap;">
-                                <div class="form-group" style="flex: 1; min-width: 120px;">
-                                    <label>Event Time</label>
-                                    <input type="time" step="1" id="event_time" placeholder="HH:MM:SS">
-                                </div>
-                                <div class="form-group" style="flex: 1.5; min-width: 150px;">
-                                    <label>Event Type</label>
-                                    <select id="event_type">
-                                        <option value="">Select Event...</option>
-                                        <option value="Hypotensive Dip">Hypotensive Dip</option>
-                                        <option value="Blood Transfusion">Blood Transfusion (PRBCs)</option>
-                                        <option value="Saline Bolus">Saline Bolus Administered</option>
-                                        <option value="UFR Reduced/Stopped">UFR Reduced/Stopped</option>
-                                        <option value="Cramping">Cramping Reported</option>
-                                        <option value="Nausea/Vomiting">Nausea/Vomiting</option>
-                                        <option value="Other">Other</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" style="flex: 2; min-width: 200px;">
-                                    <label>Details / Value</label>
-                                    <input type="text" id="event_details" placeholder="e.g., 105/55 or 2 units PRBC">
-                                </div>
-                                <div class="form-group">
-                                    <button type="button" id="addEventBtn" class="btn-primary" style="padding: 0.6rem 1rem;">Add Event</button>
-                                </div>
-                            </div>
-                            
-                            <div class="event-list-container">
-                                <table class="data-table" id="eventTable">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 20%">Time</th>
-                                            <th style="width: 35%">Event Type</th>
-                                            <th style="width: 35%">Details</th>
-                                            <th style="width: 10%">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="eventList">
-                                        <tr id="emptyEventRow"><td colspan="4" style="color:#999; font-style:italic;">No events logged yet.</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <!-- Hidden input to store JSON string of events for form submission -->
-                            <input type="hidden" name="event_log_json" id="event_log_json" value="[]">
                         </div>
                     </div>
                 </div>
+            </div>
 
+            <!-- TAB 5: Cloud Dashboard -->
+            <div id="dashboard" class="tab-content">
                 <div class="form-section">
-                    <h2>Current HD Blood Transfusion Plan</h2>
-                    <div class="grid">
-                        <div class="form-group full-width">
-                            <label>Planned Blood Transfusion in Current HD?</label>
-                            <select id="planned_transfusion" name="planned_transfusion">
-                                <option value="No">No</option>
-                                <option value="Yes">Yes</option>
-                            </select>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                        <h2 style="margin: 0;">Cloud Session Archive</h2>
+                        <button type="button" id="refreshDashboardBtn" class="btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 1rem;">🔄 Sync with Cloud</button>
+                    </div>
+
+                    <div style="background: #f8fafc; padding: 1.25rem; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 2rem;">
+                        <div class="grid" style="grid-template-columns: 2fr 1fr 1fr; gap: 1rem; align-items: end;">
+                            <div class="form-group">
+                                <label>Search Patient Name / UHID</label>
+                                <input type="text" id="dashSearchInput" placeholder="Filter by name or ID...">
+                            </div>
+                            <div class="form-group">
+                                <label>Filter by IDH</label>
+                                <select id="dashIdhFilter">
+                                    <option value="all">All Sessions</option>
+                                    <option value="yes">IDH Occurred</option>
+                                    <option value="no">No IDH</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Sort By</label>
+                                <select id="dashSortOrder">
+                                    <option value="desc">Newest First</option>
+                                    <option value="asc">Oldest First</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div id="planned_transfusion_details" class="grid" style="display: none; margin-top: 1.5rem;">
-                        <div class="form-group">
-                            <label>Number of PRBC (Units)</label>
-                            <input type="number" step="0.1" name="planned_prbc" value="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Start Time</label>
-                            <input type="time" name="planned_transfusion_start">
-                        </div>
-                        <div class="form-group">
-                            <label>End Time</label>
-                            <input type="time" name="planned_transfusion_end">
-                        </div>
-                        <div class="form-group">
-                            <label>Rate of Transfusion (mL/hr)</label>
-                            <input type="number" step="1" name="planned_transfusion_rate" placeholder="e.g. 120">
-                        </div>
+
+                    <div class="event-list-container">
+                        <table class="data-table" id="dashboardTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Patient Name</th>
+                                    <th>UHID</th>
+                                    <th>IDH?</th>
+                                    <th>Vitals Logs</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboardSessionList">
+                                <tr><td colspan="6" style="text-align: center; color: #999; font-style: italic; padding: 2rem;">Click "Sync with Cloud" to fetch sessions.</td></tr>
+                            </tbody>
+                        </table>
                     </div>
-                <div class="actions" style="margin-top: 3rem; border-top: 2px solid #eee; padding-top: 2rem;">
+                </div>
+            </div>
+        </form>
+            <div class="actions" style="margin-top: 3rem; border-top: 2px solid #eee; padding-top: 2rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 1rem;">
                         <div>
                             <button type="button" class="btn-secondary" id="resetBtn" style="background-color: #95a5a6;">Clear Form / New Patient</button>
@@ -495,9 +547,18 @@
                     </div>
                 </div>
             </div>
-        </form>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Session Detail Modal (Overlay) -->
+    <div id="sessionModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; overflow-y: auto; padding: 2rem;">
+        <div style="background: white; max-width: 900px; margin: 0 auto; border-radius: 12px; padding: 2rem; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+            <button type="button" id="closeModalBtn" style="position: absolute; top: 1.5rem; right: 1.5rem; background: none; border: none; font-size: 2rem; color: #666; cursor: pointer;">&times;</button>
+            <div id="sessionModalContent">
+                <!-- Content dynamically populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
 </body>
 </html>

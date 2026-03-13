@@ -1,3 +1,6 @@
+// --- FIREBASE INTEGRATION ---
+import { db, collection, addDoc, getDocs, doc, setDoc, query, where, orderBy, limit } from "./firebase-config.js";
+
 document.addEventListener('DOMContentLoaded', () => {
     const tabs = document.querySelectorAll('.tab-btn');
     const contents = document.querySelectorAll('.tab-content');
@@ -443,35 +446,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const patientSelector = document.getElementById('patientSelector');
     let savedPatientsMap = {};
 
-    function loadSavedPatients() {
+    async function loadSavedPatients() {
         if (!patientSelector) return;
         
-        let records = [];
         try {
-            records = JSON.parse(localStorage.getItem('turbidex_records') || '[]');
-        } catch(e) { /* ignore invalid json */ }
-        
-        savedPatientsMap = {};
-        
-        // Group by patient name to find the most recent record for each
-        records.forEach(rec => {
-            if (rec.name && rec.name.trim() !== '') {
-                // If it's a newer record, overwrite
-                if (!savedPatientsMap[rec.name] || new Date(rec.timestamp) > new Date(savedPatientsMap[rec.name].timestamp)) {
-                    savedPatientsMap[rec.name] = rec;
+            // Fetch all patient sessions (ordered by latest)
+            const q = query(collection(db, "sessions"), orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+            
+            savedPatientsMap = {};
+            
+            querySnapshot.forEach((doc) => {
+                const rec = doc.data();
+                if (rec.name && rec.name.trim() !== '') {
+                    // Group by patient name to find the most recent record for each
+                    if (!savedPatientsMap[rec.name] || new Date(rec.timestamp) > new Date(savedPatientsMap[rec.name].timestamp)) {
+                        savedPatientsMap[rec.name] = rec;
+                    }
                 }
-            }
-        });
+            });
 
-        // Populate dropdown
-        patientSelector.innerHTML = '<option value="">-- Create New Patient Profile --</option>';
-        Object.keys(savedPatientsMap).sort().forEach(name => {
-            const p = savedPatientsMap[name];
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = p.uhid ? `${name} (UHID: ${p.uhid})` : name;
-            patientSelector.appendChild(opt);
-        });
+            // Populate dropdown
+            patientSelector.innerHTML = '<option value="">-- Create New Patient Profile --</option>';
+            Object.keys(savedPatientsMap).sort().forEach(name => {
+                const p = savedPatientsMap[name];
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = p.uhid ? `${name} (UHID: ${p.uhid})` : name;
+                patientSelector.appendChild(opt);
+            });
+            console.log("Firebase: Patient records loaded.");
+        } catch(e) { 
+            console.error("Firebase fetch failed:", e);
+            // Fallback to local storage if Firebase fails/not configured
+            const records = JSON.parse(localStorage.getItem('turbidex_records') || '[]');
+            records.forEach(rec => {
+                if (rec.name && !savedPatientsMap[rec.name]) savedPatientsMap[rec.name] = rec;
+            });
+        }
     }
 
     if (patientSelector) {
@@ -489,9 +501,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (document.getElementById('age')) document.getElementById('age').value = p.age || '';
                 if (document.querySelector('input[name="diagnosis"]')) document.querySelector('input[name="diagnosis"]').value = p.diagnosis || '';
                 if (document.querySelector('select[name="diabetes"]')) document.querySelector('select[name="diabetes"]').value = p.diabetes || '';
-                if (document.querySelector('input[name="dialysis_frequency"]')) document.querySelector('input[name="dialysis_frequency"]').value = p.dialysis_frequency || '';
-                if (document.querySelector('input[name="tx_vintage"]')) document.querySelector('input[name="tx_vintage"]').value = p.tx_vintage || '';
-                if (document.querySelector('input[name="type_of_access"]')) document.querySelector('input[name="type_of_access"]').value = p.type_of_access || '';
+                if (document.querySelector('select[name="dialysis_frequency"]')) document.querySelector('select[name="dialysis_frequency"]').value = p.dialysis_frequency || '';
+                if (document.getElementById('tx_vintage')) document.getElementById('tx_vintage').value = p.tx_vintage || '';
+                if (document.querySelector('select[name="type_of_access"]')) document.querySelector('select[name="type_of_access"]').value = p.type_of_access || '';
+                if (document.querySelector('select[name="anticoagulation"]')) document.querySelector('select[name="anticoagulation"]').value = p.anticoagulation || 'Select...';
                 
                 // Carry over previous session IDH outcome to the 'previous IDH' question
                 if (p.idh_occurred || p.prev_idh) {
@@ -502,21 +515,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // Alert to inform user
-                alert(`Loaded baseline demographics for: ${selectedName}`);
+                // Show notification
+                showToast(`Loaded baseline demographics for: ${selectedName}`, "#3498db");
             } else {
                 // Clear the auto-fill fields if 'new profile' is chosen
-                if (document.getElementById('uhid')) document.getElementById('uhid').value = '';
-                if (document.getElementById('name')) document.getElementById('name').value = '';
-                if (document.getElementById('age')) document.getElementById('age').value = '';
-                if (document.querySelector('input[name="diagnosis"]')) document.querySelector('input[name="diagnosis"]').value = '';
-                if (document.querySelector('select[name="diabetes"]')) document.querySelector('select[name="diabetes"]').value = '';
-                
-                // Clear radio buttons
+                form.reset();
                 const preIdhRbs = document.querySelectorAll(`input[name="prev_idh"]`);
                 preIdhRbs.forEach(rb => rb.checked = false);
             }
         });
+    }
+
+    function showToast(message, color = "#27ae60") {
+        const toast = document.createElement('div');
+        toast.style = `position: fixed; bottom: 20px; right: 20px; background: ${color}; color: white; padding: 10px 20px; border-radius: 5px; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1);`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
     }
 
     // Form Reset
@@ -533,8 +548,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Save Logic (Mock)
-    form.addEventListener('submit', (e) => {
+    // Save Logic (Firebase + Local Backup)
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(form);
         const data = Object.fromEntries(formData.entries());
@@ -543,20 +558,27 @@ document.addEventListener('DOMContentLoaded', () => {
         data.comorbidities = Array.from(formData.getAll('comorbidities'));
         data.symptoms = Array.from(formData.getAll('symptoms'));
         data.interventions = Array.from(formData.getAll('interventions'));
+        
+        // Embed periodic logs and clinical events
+        data.periodic_logs = periodicLogs;
+        data.clinical_events = events;
+        data.timestamp = new Date().toISOString();
 
-        console.log('Record Saved:', data);
+        console.log('Attempting Firebase Save:', data);
         
-        // Save to LocalStorage for persistence during research
-        let records = [];
         try {
-            records = JSON.parse(localStorage.getItem('turbidex_records') || '[]');
-        } catch(e) { /* ignore invalid json */ }
-        
-        records.push({
-            ...data,
-            timestamp: new Date().toISOString()
-        });
-        localStorage.setItem('turbidex_records', JSON.stringify(records));
+            // Save to Firebase Firestore
+            const docRef = await addDoc(collection(db, "sessions"), data);
+            console.log("Firebase: Document written with ID: ", docRef.id);
+            showToast('Session saved to cloud successfully!');
+        } catch (error) {
+            console.error("Firebase Save Error:", error);
+            // Fallback to LocalStorage
+            let records = JSON.parse(localStorage.getItem('turbidex_records') || '[]');
+            records.push(data);
+            localStorage.setItem('turbidex_records', JSON.stringify(records));
+            showToast('Cloud save failed. Saved to local storage instead.', "#e67e22");
+        }
         
         // Clear active session once finalized
         localStorage.removeItem('turbidex_active_session');
@@ -564,8 +586,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Refresh dropdown
         loadSavedPatients();
-
-        alert('Patient record saved successfully. You can now load this profile in future sessions.');
     });
 
     // Proper CSV escaping function (RFC 4180)
@@ -579,15 +599,21 @@ document.addEventListener('DOMContentLoaded', () => {
             stringVal = String(val);
         }
 
-        // Standard CSV rules: 
-        // 1. Wrap in double quotes
-        // 2. Double any existing double quotes
         return `"${stringVal.replace(/"/g, '""')}"`;
     }
 
     // Export to CSV
-    exportBtn.addEventListener('click', () => {
-        const records = JSON.parse(localStorage.getItem('turbidex_records') || '[]');
+    exportBtn.addEventListener('click', async () => {
+        let records = [];
+        try {
+            const q = query(collection(db, "sessions"), orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach(doc => records.push(doc.data()));
+        } catch (e) {
+            console.warn("Cloud export failed, trying local storage:", e);
+            records = JSON.parse(localStorage.getItem('turbidex_records') || '[]');
+        }
+
         if (records.length === 0) {
             alert('No records found to export.');
             return;
@@ -623,8 +649,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Export to JSON
     if (exportJsonBtn) {
-        exportJsonBtn.addEventListener('click', () => {
-            const records = JSON.parse(localStorage.getItem('turbidex_records') || '[]');
+        exportJsonBtn.addEventListener('click', async () => {
+            let records = [];
+            try {
+                const q = query(collection(db, "sessions"), orderBy("timestamp", "desc"));
+                const querySnapshot = await getDocs(q);
+                querySnapshot.forEach(doc => records.push(doc.data()));
+            } catch (e) {
+                console.warn("Cloud export failed, trying local storage:", e);
+                records = JSON.parse(localStorage.getItem('turbidex_records') || '[]');
+            }
+
             if (records.length === 0) {
                 alert('No records found to export.');
                 return;
@@ -641,5 +676,179 @@ document.addEventListener('DOMContentLoaded', () => {
             link.click();
             document.body.removeChild(link);
         });
+    }
+
+    // --- CLOUD DASHBOARD LOGIC ---
+    const refreshDashboardBtn = document.getElementById('refreshDashboardBtn');
+    const dashboardSessionList = document.getElementById('dashboardSessionList');
+    const dashSearchInput = document.getElementById('dashSearchInput');
+    const dashIdhFilter = document.getElementById('dashIdhFilter');
+    const dashSortOrder = document.getElementById('dashSortOrder');
+    const sessionModal = document.getElementById('sessionModal');
+    const sessionModalContent = document.getElementById('sessionModalContent');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+
+    let allCloudSessions = [];
+
+    async function fetchDashboardSessions() {
+        if (!dashboardSessionList) return;
+        
+        dashboardSessionList.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;">Loading sessions from cloud...</td></tr>';
+        
+        try {
+            const q = query(collection(db, "sessions"), orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+            
+            allCloudSessions = [];
+            querySnapshot.forEach((doc) => {
+                allCloudSessions.push({ id: doc.id, ...doc.data() });
+            });
+
+            renderDashboardTable();
+        } catch (e) {
+            console.error("Dashboard fetch failed:", e);
+            dashboardSessionList.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #e74c3c; padding: 2rem;">Error fetching cloud data: ${e.message}</td></tr>`;
+        }
+    }
+
+    function renderDashboardTable() {
+        if (!dashboardSessionList) return;
+
+        const searchTerm = dashSearchInput.value.toLowerCase();
+        const idhFilter = dashIdhFilter.value;
+        const sortOrder = dashSortOrder.value;
+
+        let filtered = allCloudSessions.filter(s => {
+            const matchesSearch = (s.name || '').toLowerCase().includes(searchTerm) || (s.uhid || '').toLowerCase().includes(searchTerm);
+            const matchesIdh = idhFilter === 'all' || s.idh_occurred === idhFilter;
+            return matchesSearch && matchesIdh;
+        });
+
+        // Sort
+        filtered.sort((a, b) => {
+            const timeA = new Date(a.timestamp);
+            const timeB = new Date(b.timestamp);
+            return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+        });
+
+        if (filtered.length === 0) {
+            dashboardSessionList.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999; font-style: italic; padding: 2rem;">No matching sessions found.</td></tr>';
+            return;
+        }
+
+        dashboardSessionList.innerHTML = '';
+        filtered.forEach(session => {
+            const tr = document.createElement('tr');
+            const dateStr = session.date || (session.timestamp ? session.timestamp.split('T')[0] : 'N/A');
+            const periodicCount = (session.periodic_logs || []).length;
+            const eventCount = (session.clinical_events || []).length;
+
+            tr.innerHTML = `
+                <td>${dateStr}</td>
+                <td style="font-weight: bold;">${session.name || 'Anonymous'}</td>
+                <td>${session.uhid || 'N/A'}</td>
+                <td>
+                    <span style="padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; background: ${session.idh_occurred === 'yes' ? '#fed7d7' : '#f0fff4'}; color: ${session.idh_occurred === 'yes' ? '#c53030' : '#2f855a'};">
+                        ${session.idh_occurred === 'yes' ? 'YES' : 'NO'}
+                    </span>
+                </td>
+                <td>${periodicCount} Logs / ${eventCount} Events</td>
+                <td>
+                    <button type="button" class="btn-primary view-session-btn" data-id="${session.id}" style="padding: 4px 12px; font-size: 0.8rem; background-color: #3498db;">View Details</button>
+                </td>
+            `;
+
+            const viewBtn = tr.querySelector('.view-session-btn');
+            viewBtn.addEventListener('click', () => showSessionDetails(session));
+
+            dashboardSessionList.appendChild(tr);
+        });
+    }
+
+    function showSessionDetails(session) {
+        if (!sessionModal || !sessionModalContent) return;
+
+        let logsHtml = '';
+        if (session.periodic_logs && session.periodic_logs.length > 0) {
+            logsHtml = `
+                <h4 style="margin-top: 2rem; color: #34495e;">Periodic Vitals & Machine Logs</h4>
+                <table class="data-table" style="font-size: 0.85rem;">
+                    <thead>
+                        <tr><th>Time</th><th>SBP/DBP</th><th>HR</th><th>UFR</th><th>Infusion</th></tr>
+                    </thead>
+                    <tbody>
+                        ${session.periodic_logs.map(l => `
+                            <tr>
+                                <td>${l.time}</td>
+                                <td>${l.sbp}/${l.dbp}</td>
+                                <td>${l.hr}</td>
+                                <td>${l.ufr}</td>
+                                <td>${l.infusion}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        let eventsHtml = '';
+        if (session.clinical_events && session.clinical_events.length > 0) {
+            eventsHtml = `
+                <h4 style="margin-top: 2rem; color: #34495e;">Clinical Events</h4>
+                <table class="data-table" style="font-size: 0.85rem;">
+                    <thead>
+                        <tr><th>Time</th><th>Event</th><th>Details</th></tr>
+                    </thead>
+                    <tbody>
+                        ${session.clinical_events.map(e => `
+                            <tr>
+                                <td>${e.time}</td>
+                                <td>${e.type}</td>
+                                <td>${e.details}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        sessionModalContent.innerHTML = `
+            <h2 style="color: var(--primary-color); border-bottom: 2px solid #eee; padding-bottom: 0.5rem; margin-top: 0;">Session Details: ${session.name || 'Anonymous'}</h2>
+            <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.5rem;">
+                <div><strong>Date:</strong> ${session.date || 'N/A'}</div>
+                <div><strong>UHID:</strong> ${session.uhid || 'N/A'}</div>
+                <div><strong>Age:</strong> ${session.age || 'N/A'}</div>
+                <div><strong>Diagnosis:</strong> ${session.diagnosis || 'N/A'}</div>
+                <div><strong>Diabetes:</strong> ${session.diabetes || 'N/A'}</div>
+                <div><strong>Anticoagulation:</strong> ${session.anticoagulation || 'N/A'}</div>
+                <div><strong>Pre-HD Weight:</strong> ${session.pre_weight || 'N/A'} kg</div>
+                <div><strong>Dry Weight:</strong> ${session.dry_weight || 'N/A'} kg</div>
+                <div><strong>IDH Occurred:</strong> <span style="font-weight: bold; color: ${session.idh_occurred === 'yes' ? '#e74c3c' : '#27ae60'}">${session.idh_occurred?.toUpperCase() || 'N/A'}</span></div>
+            </div>
+            ${logsHtml}
+            ${eventsHtml}
+            <div style="margin-top: 2rem; text-align: center;">
+                <button type="button" class="btn-primary" onclick="this.closest('#sessionModal').style.display = 'none'">Close Archive View</button>
+            </div>
+        `;
+
+        sessionModal.style.display = 'block';
+    }
+
+    if (refreshDashboardBtn) refreshDashboardBtn.addEventListener('click', fetchDashboardSessions);
+    if (dashSearchInput) dashSearchInput.addEventListener('input', renderDashboardTable);
+    if (dashIdhFilter) dashIdhFilter.addEventListener('change', renderDashboardTable);
+    if (dashSortOrder) dashSortOrder.addEventListener('change', renderDashboardTable);
+    if (closeModalBtn) closeModalBtn.addEventListener('click', () => sessionModal.style.display = 'none');
+
+    // Close modal on outside click
+    window.addEventListener('click', (e) => {
+        if (e.target === sessionModal) sessionModal.style.display = 'none';
+    });
+
+    // Fetch dashboard stats when the tab is clicked
+    const dashboardTabBtn = document.querySelector('.tab-btn[data-tab="dashboard"]');
+    if (dashboardTabBtn) {
+        dashboardTabBtn.addEventListener('click', fetchDashboardSessions);
     }
 });

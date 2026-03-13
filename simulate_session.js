@@ -22,6 +22,7 @@
     document.querySelector('select[name="diabetes"]').value = "Yes";
     document.querySelector('select[name="dialysis_frequency"]').value = "3/week";
     document.querySelector('select[name="type_of_access"]').value = "BC AVF";
+    document.querySelector('select[name="anticoagulation"]').value = "Saline";
     
     // Check some comorbidities
     document.querySelectorAll('input[name="comorbidities"]').forEach(cb => {
