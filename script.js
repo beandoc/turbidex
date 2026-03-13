@@ -417,6 +417,23 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Patient record saved successfully. You can now load this profile in future sessions.');
     });
 
+    // Proper CSV escaping function (RFC 4180)
+    function escapeCSV(val) {
+        if (val === null || val === undefined) return '""';
+        
+        let stringVal = '';
+        if (typeof val === 'object') {
+            stringVal = JSON.stringify(val);
+        } else {
+            stringVal = String(val);
+        }
+
+        // Standard CSV rules: 
+        // 1. Wrap in double quotes
+        // 2. Double any existing double quotes
+        return `"${stringVal.replace(/"/g, '""')}"`;
+    }
+
     // Export to CSV
     exportBtn.addEventListener('click', () => {
         const records = JSON.parse(localStorage.getItem('turbidex_records') || '[]');
@@ -425,14 +442,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const headers = Object.keys(records[0]);
-        const csvContent = [
-            headers.join(','),
-            ...records.map(row => headers.map(fieldName => {
-                const val = row[fieldName];
-                return JSON.stringify(Array.isArray(val) ? val.join(';') : val);
-            }).join(','))
-        ].join('\n');
+        // Get all unique keys across all records to ensure column alignment
+        const allKeys = new Set();
+        records.forEach(rec => Object.keys(rec).forEach(k => allKeys.add(k)));
+        const headers = Array.from(allKeys);
+
+        const csvRows = [];
+        // Add header row
+        csvRows.push(headers.map(h => escapeCSV(h)).join(','));
+
+        // Add data rows
+        records.forEach(row => {
+            const values = headers.map(header => escapeCSV(row[header]));
+            csvRows.push(values.join(','));
+        });
+
+        const csvContent = csvRows.join('\n');
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
