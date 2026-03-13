@@ -133,8 +133,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Automated Vitals Capture (Every 30 Minutes)
             // Initial capture when session starts, then every 30m
             if (!lastAutoCaptureTime || (now - lastAutoCaptureTime) >= (30 * 60 * 1000)) {
-                autoCaptureVitals();
-                lastAutoCaptureTime = now;
+                lastAutoCaptureTime = now; // Set BEFORE to prevent loop if render crashes
+                try {
+                    autoCaptureVitals();
+                } catch(e) { console.error("Auto-capture failed:", e); }
             }
         }
     }, 1000);
@@ -157,7 +159,8 @@ document.addEventListener('DOMContentLoaded', () => {
             dbp: dynDbp.value,
             hr: dynHr.value,
             infusion: 'No',
-            _isAuto: true // Flag to distinguish from manual entry
+            _isAuto: true,
+            _isVitals: true
         });
 
         renderPeriodicLogs();
@@ -271,11 +274,24 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        events.push({
-            time: time,
-            type: type || 'Other',
-            details: details
-        });
+        if (type === 'Hypotensive Dip' && (!details || !details.includes('/'))) {
+            const manualSbp = prompt("Hypotensive Dip detected. Please enter SBP/DBP (e.g. 90/60) for research analysis:");
+            if (!manualSbp || !manualSbp.includes('/')) {
+                alert("Valid SBP/DBP is required for Hypotensive Dip adjudication.");
+                return;
+            }
+            events.push({
+                time: time,
+                type: type,
+                details: `BP: ${manualSbp}`
+            });
+        } else {
+            events.push({
+                time: time,
+                type: type || 'Other',
+                details: details
+            });
+        }
 
         // Reset inputs
         eventTimeInput.value = '';
@@ -298,11 +314,37 @@ document.addEventListener('DOMContentLoaded', () => {
             const s = String(now.getSeconds()).padStart(2, '0');
             const currentTime = `${h}:${m}:${s}`;
             
-            events.push({
-                time: currentTime,
-                type: eventType,
-                details: 'Quick Logged'
-            });
+            if (eventType === 'Hypotensive Dip') {
+                const sbpVal = dynSbp.value;
+                const dbpVal = dynDbp.value;
+                const confirmBp = confirm(`Log Hypotensive Dip at current slider values (${sbpVal}/${dbpVal} mmHg)?`);
+                
+                if (confirmBp) {
+                    events.push({
+                        time: currentTime,
+                        type: eventType,
+                        details: `BP: ${sbpVal}/${dbpVal}`
+                    });
+                } else {
+                    const manualBp = prompt("Enter exact SBP/DBP for this dip (e.g. 85/50):");
+                    if (manualBp && manualBp.includes('/')) {
+                        events.push({
+                            time: currentTime,
+                            type: eventType,
+                            details: `BP: ${manualBp}`
+                        });
+                    } else {
+                        alert("Dip NOT logged. SBP/DBP is required for clinical correlation.");
+                        return;
+                    }
+                }
+            } else {
+                events.push({
+                    time: currentTime,
+                    type: eventType,
+                    details: 'Quick Logged'
+                });
+            }
             
             renderEvents();
             
@@ -321,15 +363,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let periodicLogs = [];
     const addLogBtn = document.getElementById('addLogBtn');
     const periodicLogList = document.getElementById('periodicLogList');
+    const emptyPeriodicRow = document.getElementById('emptyPeriodicRow');
     const vitalsLogList = document.getElementById('vitalsLogList');
     const emptyVitalsRow = document.getElementById('emptyVitalsRow');
+    const periodicLogJsonInput = document.getElementById('periodic_log_json');
 
     function renderPeriodicLogs() {
         periodicLogList.innerHTML = '';
         vitalsLogList.innerHTML = '';
         
-        const machineLogs = periodicLogs.filter(l => l.ufr || l.qb || l.cumUf);
-        const vitalsLogs = periodicLogs.filter(l => l.sbp || l.hr);
+        const machineLogs = periodicLogs.filter(l => l._isMachine);
+        const vitalsLogs = periodicLogs.filter(l => l._isVitals);
 
         // Render Machine Logs
         if (machineLogs.length === 0) {
@@ -450,7 +494,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 sbp: '',
                 dbp: '',
                 hr: '',
-                infusion
+                infusion,
+                _isMachine: true
             });
 
             // Reset inputs
@@ -495,7 +540,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 sbp: dynSbp.value,
                 dbp: dynDbp.value,
                 hr: dynHr.value,
-                infusion: 'No'
+                infusion: 'No',
+                _isVitals: true
             });
 
             renderPeriodicLogs();
@@ -703,15 +749,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Handle nested clinical logs/events
         if ((key === 'periodic_logs' || key === 'clinical_events') && Array.isArray(processedVal)) {
+            const isPeriodic = key === 'periodic_logs';
+            const fieldOrder = isPeriodic
+                ? ['time', 'sbp', 'dbp', 'hr', 'ufr', 'qb', 'cumUf', 'infusion']
+                : ['time', 'type', 'details'];
+            
+            const labels = {
+                time: "Time", sbp: "SBP", dbp: "DBP", hr: "HR", 
+                ufr: "UFR", qb: "Qb", cumUf: "CumUF", infusion: "Infusion",
+                type: "Event", details: "Details"
+            };
+
             return processedVal.map(item => {
-                return Object.entries(item)
-                    .filter(([k]) => !k.startsWith('_'))
-                    .map(([k, v]) => `${k}: ${v}`)
+                return fieldOrder
+                    .filter(f => item[f] !== undefined && item[f] !== null && item[f] !== '')
+                    .map(f => `${labels[f] || f}: ${item[f]}`)
                     .join(' | ');
             }).join(' || ');
         }
         
-        // Handle standard arrays like comorbidities/symptoms
+        // Handle standard arrays like comorbidities/symptoms (JSON strings or native arrays)
         if (Array.isArray(processedVal)) {
             return processedVal.join(' | ');
         }
