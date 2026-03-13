@@ -10,6 +10,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportJsonBtn = document.getElementById('exportJsonBtn');
 
     // Tab Switching Logic
+    const actionsArea = document.querySelector('.actions');
+    
+    function toggleActionsVisibility(tabId) {
+        if (!actionsArea) return;
+        // Hide global actions on the first 3 "setup" tabs
+        if (['setup', 'demographics', 'vitals'].includes(tabId)) {
+            actionsArea.style.display = 'none';
+        } else {
+            actionsArea.style.display = 'block';
+        }
+    }
+
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const target = tab.dataset.tab;
@@ -20,10 +32,15 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.classList.add('active');
             document.getElementById(target).classList.add('active');
             
+            toggleActionsVisibility(target);
+            
             // Scroll to the top when switching tabs
             window.scrollTo(0, 0);
         });
     });
+
+    // Initial visibility check
+    toggleActionsVisibility('setup');
 
     // Save & Next button logic
     const nextTabBtns = document.querySelectorAll('.next-tab-btn');
