@@ -124,8 +124,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) { console.error("Restore failed:", e); }
     }
 
-    // Timer & Auto-Capture logic
-    let lastAutoCaptureTime = null;
+    // Timer logic — DISPLAY ONLY, no automatic data capture
+    // Auto-capture has been disabled to prevent per-second log pollution.
+    // Vitals are captured ONLY via the manual "Capture & Save Exact Vitals" button.
     setInterval(() => {
         if (!timerEl) return;
         if (periodicLogs.length > 0 || events.length > 0) {
@@ -136,43 +137,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
             const s = String(diff % 60).padStart(2, '0');
             timerEl.textContent = `${h}:${m}:${s}`;
-
-            // Automated Vitals Capture (Every 30 Minutes)
-            // Initial capture when session starts, then every 30m
-            if (!lastAutoCaptureTime || (now - lastAutoCaptureTime) >= (30 * 60 * 1000)) {
-                lastAutoCaptureTime = now; // Set BEFORE to prevent loop if render crashes
-                try {
-                    autoCaptureVitals();
-                } catch(e) { console.error("Auto-capture failed:", e); }
-            }
         }
     }, 1000);
-
-    function autoCaptureVitals() {
-        if (!dynSbp || !dynDbp || !dynHr) return;
-        
-        const now = new Date();
-        const h = String(now.getHours()).padStart(2, '0');
-        const m = String(now.getMinutes()).padStart(2, '0');
-        const s = String(now.getSeconds()).padStart(2, '0');
-        const currentTime = `${h}:${m}:${s}`;
-
-        periodicLogs.push({
-            time: currentTime,
-            ufr: '',
-            cumUf: '',
-            qb: '',
-            sbp: dynSbp.value,
-            dbp: dynDbp.value,
-            hr: dynHr.value,
-            infusion: 'No',
-            _isAuto: true,
-            _isVitals: true
-        });
-
-        renderPeriodicLogs();
-        console.log(`Auto-captured vitals at ${currentTime}`);
-    }
 
     // Trigger restore on load
     restoreActiveSession();
@@ -554,6 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             renderPeriodicLogs();
+            showToast(`✅ Vitals saved: ${dynSbp.value}/${dynDbp.value} HR:${dynHr.value} @ ${currentTime}`);
         });
     }
 
@@ -759,6 +726,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Handle nested clinical logs/events
         if ((key === 'periodic_logs' || key === 'clinical_events') && Array.isArray(processedVal)) {
             const isPeriodic = key === 'periodic_logs';
+            // STRICT field order — Firestore objects don't preserve key ordering,
+            // so we must enforce it here for research-grade CSV output.
             const fieldOrder = isPeriodic
                 ? ['time', 'sbp', 'dbp', 'hr', 'ufr', 'qb', 'cumUf', 'infusion']
                 : ['time', 'type', 'details'];
@@ -770,16 +739,22 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             return processedVal.map(item => {
+                // Iterate over the ORDERED field list, not the object's own keys
                 return fieldOrder
-                    .filter(f => item[f] !== undefined && item[f] !== null && String(item[f]).trim() !== '')
-                    .map(f => `${labels[f] || f}: ${item[f]}`)
+                    .filter(f => {
+                        const v = item[f];
+                        return v !== undefined && v !== null && String(v).trim() !== '';
+                    })
+                    .map(f => `${labels[f]}: ${item[f]}`)
                     .join(' | ');
             }).join(' || ');
         }
         
-        // Handle standard arrays like comorbidities/symptoms (native arrays)
+        // Handle standard arrays like comorbidities/symptoms
         if (Array.isArray(processedVal)) {
-            return processedVal.join(' | ');
+            // Deduplicate values (e.g., user accidentally selected T2DM twice)
+            const unique = [...new Set(processedVal)];
+            return unique.join(' | ');
         }
         
         return processedVal;
