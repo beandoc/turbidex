@@ -227,20 +227,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addLogBtn) {
         addLogBtn.addEventListener('click', () => {
             const time = document.getElementById('log_time').value;
+            const ufr = document.getElementById('log_ufr').value;
+            const cumUf = document.getElementById('log_cum_uf').value;
+            const qb = document.getElementById('log_qb').value;
+            const infusion = document.getElementById('log_infusion').value;
+
             if (!time) {
-                alert('Please specify the time for this log entry.');
+                alert('Please specify the time for the log entry.');
                 return;
             }
 
             periodicLogs.push({
-                time: time,
-                ufr: document.getElementById('log_ufr').value,
-                cumUf: document.getElementById('log_cum_uf').value,
-                qb: document.getElementById('log_qb').value,
-                sbp: document.getElementById('log_sbp').value,
-                dbp: document.getElementById('log_dbp').value,
-                hr: document.getElementById('log_hr').value,
-                infusion: document.getElementById('log_infusion').value
+                time,
+                ufr: ufr || '-',
+                cumUf: cumUf || '-',
+                qb: qb || '-',
+                sbp: '-',
+                dbp: '-',
+                hr: '-',
+                infusion
             });
 
             // Reset inputs
@@ -248,9 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('log_ufr').value = '';
             document.getElementById('log_cum_uf').value = '';
             document.getElementById('log_qb').value = '';
-            document.getElementById('log_sbp').value = '';
-            document.getElementById('log_dbp').value = '';
-            document.getElementById('log_hr').value = '';
             document.getElementById('log_infusion').value = 'No';
 
             renderPeriodicLogs();

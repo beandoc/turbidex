@@ -14,7 +14,7 @@
     <div class="container">
         <header>
             <h1>Turbidex Optical Sensor - Research Form</h1>
-            <p>Predicting Ultrafiltration Tolerance & Hypotension via Optical Sensometry</p>
+            <p>Predicting Ultrafiltration Tolerance & Hypotension</p>
         </header>
 
         <div class="tabs">
@@ -100,7 +100,11 @@
                         </div>
                         <div class="form-group">
                             <label>Frequency of Dialysis</label>
-                            <input type="text" name="dialysis_frequency" placeholder="e.g. 3/week">
+                            <select name="dialysis_frequency">
+                                <option value="">Select</option>
+                                <option value="3/week">3/week</option>
+                                <option value="2/week">2/week</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Tx Vintage (Months on HD)</label>
@@ -108,7 +112,14 @@
                         </div>
                         <div class="form-group">
                             <label>Type of Access</label>
-                            <input type="text" name="type_of_access" placeholder="e.g. rt TCC, AVF">
+                            <select name="type_of_access">
+                                <option value="">Select</option>
+                                <option value="DLJC">DLJC</option>
+                                <option value="DLFC">DLFC</option>
+                                <option value="SLFC">SLFC</option>
+                                <option value="RC AVF">RC AVF</option>
+                                <option value="BC AVF">BC AVF</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Anticoagulation</label>
@@ -125,37 +136,8 @@
                     </div>
                 </div>
 
-                <div class="form-section">
-                    <h2>Current HD Blood Transfusion Plan</h2>
-                    <div class="grid">
-                        <div class="form-group full-width">
-                            <label>Planned Blood Transfusion in Current HD?</label>
-                            <select id="planned_transfusion" name="planned_transfusion">
-                                <option value="No">No</option>
-                                <option value="Yes">Yes</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div id="planned_transfusion_details" class="grid" style="display: none; margin-top: 1.5rem;">
-                        <div class="form-group">
-                            <label>Number of PRBC (Units)</label>
-                            <input type="number" step="0.1" name="planned_prbc" placeholder="e.g. 1">
-                        </div>
-                        <div class="form-group">
-                            <label>Start Time</label>
-                            <input type="time" name="planned_transfusion_start">
-                        </div>
-                        <div class="form-group">
-                            <label>End Time</label>
-                            <input type="time" name="planned_transfusion_end">
-                        </div>
-                        <div class="form-group">
-                            <label>Rate of Transfusion (mL/hr)</label>
-                            <input type="number" step="1" name="planned_transfusion_rate" placeholder="e.g. 120">
-                        </div>
-                    </div>
                 </div>
+            </div>
             </div>
 
             <!-- TAB 3: Pre-HD & Labs -->
@@ -285,9 +267,6 @@
                         <div class="form-group"><label>UFR (ml/h)</label><input type="number" id="log_ufr" placeholder="e.g. 631"></div>
                         <div class="form-group"><label>Cum. UF (ml)</label><input type="number" id="log_cum_uf" placeholder="e.g. 301"></div>
                         <div class="form-group"><label>Qb (ml/min)</label><input type="number" id="log_qb" placeholder="e.g. 146"></div>
-                        <div class="form-group"><label>SBP</label><input type="number" id="log_sbp"></div>
-                        <div class="form-group"><label>DBP</label><input type="number" id="log_dbp"></div>
-                        <div class="form-group"><label>HR (bpm)</label><input type="number" id="log_hr"></div>
                         <div class="form-group" style="min-width: 120px;">
                             <label>Active Infusion?</label>
                             <select id="log_infusion" style="background:#fff3cd; color:#856404; font-weight:bold;">
@@ -431,6 +410,38 @@
                             </div>
                             <!-- Hidden input to store JSON string of events for form submission -->
                             <input type="hidden" name="event_log_json" id="event_log_json" value="[]">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2>Current HD Blood Transfusion Plan</h2>
+                    <div class="grid">
+                        <div class="form-group full-width">
+                            <label>Planned Blood Transfusion in Current HD?</label>
+                            <select id="planned_transfusion" name="planned_transfusion">
+                                <option value="No">No</option>
+                                <option value="Yes">Yes</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="planned_transfusion_details" class="grid" style="display: none; margin-top: 1.5rem;">
+                        <div class="form-group">
+                            <label>Number of PRBC (Units)</label>
+                            <input type="number" step="0.1" name="planned_prbc" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Start Time</label>
+                            <input type="time" name="planned_transfusion_start">
+                        </div>
+                        <div class="form-group">
+                            <label>End Time</label>
+                            <input type="time" name="planned_transfusion_end">
+                        </div>
+                        <div class="form-group">
+                            <label>Rate of Transfusion (mL/hr)</label>
+                            <input type="number" step="1" name="planned_transfusion_rate" placeholder="e.g. 120">
                         </div>
                     </div>
                 </div>
