@@ -827,10 +827,37 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             ${logsHtml}
             ${eventsHtml}
-            <div style="margin-top: 2rem; text-align: center;">
-                <button type="button" class="btn-primary" onclick="this.closest('#sessionModal').style.display = 'none'">Close Archive View</button>
+            <div style="margin-top: 2rem; display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+                <button type="button" class="btn-export" id="downloadSingleCsv" style="background-color: var(--primary-color);">Download Session (CSV)</button>
+                <button type="button" class="btn-export" id="downloadSingleJson" style="background-color: #8e44ad;">Download Session (JSON)</button>
+                <button type="button" class="btn-primary" onclick="this.closest('#sessionModal').style.display = 'none'" style="background-color: #95a5a6;">Close Archive View</button>
             </div>
         `;
+
+        // Handle Single Session CSV Export
+        document.getElementById('downloadSingleCsv').addEventListener('click', () => {
+            const keys = Object.keys(session).filter(k => k !== 'id');
+            const row = keys.map(k => escapeCSV(session[k])).join(',');
+            const csvContent = keys.map(k => escapeCSV(k)).join(',') + '\n' + row;
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const fileName = `session_${(session.name || 'anon').replace(/\s+/g, '_')}_${session.date || 'no_date'}.csv`;
+            link.setAttribute('href', URL.createObjectURL(blob));
+            link.setAttribute('download', fileName);
+            link.click();
+        });
+
+        // Handle Single Session JSON Export
+        document.getElementById('downloadSingleJson').addEventListener('click', () => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(session, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            const fileName = `session_${(session.name || 'anon').replace(/\s+/g, '_')}_${session.date || 'no_date'}.json`;
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", fileName);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        });
 
         sessionModal.style.display = 'block';
     }
