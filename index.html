@@ -206,12 +206,12 @@
                             <input type="number" name="ejection_fraction" placeholder="e.g. 45" min="10" max="100">
                         </div>
                         <div class="form-group">
-                            <label>Predialysis Weight (kg)</label>
-                            <input type="number" step="0.1" name="predialysis_weight">
+                            <label>Predialysis Weight (kg) *</label>
+                            <input type="number" step="0.1" name="predialysis_weight" required>
                         </div>
                         <div class="form-group">
-                            <label>Patient Dry Weight (kg)</label>
-                            <input type="number" step="0.1" name="patient_dry_weight">
+                            <label>Patient Dry Weight (kg) *</label>
+                            <input type="number" step="0.1" name="patient_dry_weight" required>
                         </div>
                         <div class="form-group">
                             <label>Last Post-Dialysis Weight (kg)</label>
@@ -259,6 +259,7 @@
                             <span id="session_timer" style="font-family: monospace; font-size: 1.1rem; border-left: 1px solid #555; padding-left: 15px;">00:00:00</span>
                         </div>
                         <div style="display: flex; gap: 20px; font-size: 0.9rem;">
+                            <span id="auto_capture_status" style="color: #bdc3c7; font-size: 0.75rem;">Auto-Capture: <strong style="color: #2ecc71;">Active (30m)</strong></span>
                             <span>Machine Logs: <strong id="count_machine_logs" style="color: #3498db;">0</strong></span>
                             <span>Clinical Events: <strong id="count_events" style="color: #f39c12;">0</strong></span>
                         </div>

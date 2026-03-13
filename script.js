@@ -97,7 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch(e) { console.error("Restore failed:", e); }
     }
 
-    // Timer logic
+    // Timer & Auto-Capture logic
+    let lastAutoCaptureTime = null;
     setInterval(() => {
         if (!timerEl) return;
         if (periodicLogs.length > 0 || events.length > 0) {
@@ -108,8 +109,40 @@ document.addEventListener('DOMContentLoaded', () => {
             const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
             const s = String(diff % 60).padStart(2, '0');
             timerEl.textContent = `${h}:${m}:${s}`;
+
+            // Automated Vitals Capture (Every 30 Minutes)
+            // Initial capture when session starts, then every 30m
+            if (!lastAutoCaptureTime || (now - lastAutoCaptureTime) >= (30 * 60 * 1000)) {
+                autoCaptureVitals();
+                lastAutoCaptureTime = now;
+            }
         }
     }, 1000);
+
+    function autoCaptureVitals() {
+        if (!dynSbp || !dynDbp || !dynHr) return;
+        
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        const currentTime = `${h}:${m}:${s}`;
+
+        periodicLogs.push({
+            time: currentTime,
+            ufr: '',
+            cumUf: '',
+            qb: '',
+            sbp: dynSbp.value,
+            dbp: dynDbp.value,
+            hr: dynHr.value,
+            infusion: 'No',
+            _isAuto: true // Flag to distinguish from manual entry
+        });
+
+        renderPeriodicLogs();
+        console.log(`Auto-captured vitals at ${currentTime}`);
+    }
 
     // Trigger restore on load
     restoreActiveSession();
@@ -290,16 +323,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // Calculate MAP
             const sbp = parseFloat(log.sbp);
             const dbp = parseFloat(log.dbp);
-            const map = (!isNaN(sbp) && !isNaN(dbp)) ? Math.round((sbp + 2 * dbp) / 3) : '-';
+            const map = (!isNaN(sbp) && !isNaN(dbp)) ? Math.round((sbp + 2 * dbp) / 3) : '';
 
             tr.innerHTML = `
-                <td>${log.time}</td>
-                <td>${log.ufr}</td>
-                <td>${log.cumUf}</td>
-                <td>${log.qb}</td>
-                <td>${log.sbp ? log.sbp + '/' + log.dbp : '-'}</td>
+                <td style="${log._isAuto ? 'color: #95a5a6; font-style: italic;' : ''}">${log.time}${log._isAuto ? ' (A)' : ''}</td>
+                <td>${log.ufr || ''}</td>
+                <td>${log.cumUf || ''}</td>
+                <td>${log.qb || ''}</td>
+                <td>${log.sbp ? (log.sbp + '/' + log.dbp) : ''}</td>
                 <td>${map}</td>
-                <td>${log.hr}</td>
+                <td>${log.hr || ''}</td>
                 <td style="font-weight: bold; color: ${log.infusion === 'Yes' ? '#e74c3c' : 'inherit'}">${log.infusion}</td>
             `;
 
@@ -348,12 +381,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             periodicLogs.push({
                 time,
-                ufr: ufr || '-',
-                cumUf: cumUf || '-',
-                qb: qb || '-',
-                sbp: '-',
-                dbp: '-',
-                hr: '-',
+                ufr: ufr || '',
+                cumUf: cumUf || '',
+                qb: qb || '',
+                sbp: '',
+                dbp: '',
+                hr: '',
                 infusion
             });
 
@@ -393,9 +426,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             periodicLogs.push({
                 time: currentTime,
-                ufr: '-',
-                cumUf: '-',
-                qb: '-',
+                ufr: '',
+                cumUf: '',
+                qb: '',
                 sbp: dynSbp.value,
                 dbp: dynDbp.value,
                 hr: dynHr.value,
