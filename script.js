@@ -1,5 +1,5 @@
 // --- FIREBASE INTEGRATION ---
-import { db, collection, addDoc, getDocs, doc, setDoc, query, where, orderBy, limit } from "./firebase-config.js";
+import { db, collection, addDoc, getDocs, doc, setDoc, deleteDoc, query, where, orderBy, limit } from "./firebase-config.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const tabs = document.querySelectorAll('.tab-btn');
@@ -584,17 +584,22 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Attempting Firebase Save:', data);
         
         try {
+            if (!db) throw new Error("Firebase DB not initialized. Check your config.");
+
             // Save to Firebase Firestore
             const docRef = await addDoc(collection(db, "sessions"), data);
             console.log("Firebase: Document written with ID: ", docRef.id);
-            showToast('Session saved to cloud successfully!');
+            
+            showToast('✅ Session saved to cloud successfully!');
+            alert('Cloud Save Successful! Document ID: ' + docRef.id);
         } catch (error) {
-            console.error("Firebase Save Error:", error);
+            console.error("Firebase Save Error Detail:", error);
             // Fallback to LocalStorage
             let records = JSON.parse(localStorage.getItem('turbidex_records') || '[]');
             records.push(data);
             localStorage.setItem('turbidex_records', JSON.stringify(records));
-            showToast('Cloud save failed. Saved to local storage instead.', "#e67e22");
+            showToast('❌ Cloud save failed. Saved locally.', "#e74c3c");
+            alert('Cloud save failed. This usually happens due to Firebase connectivity issues or permission rules. Data has been backed up to your browser local storage.');
         }
         
         // Clear active session once finalized
@@ -619,6 +624,30 @@ document.addEventListener('DOMContentLoaded', () => {
         return `"${stringVal.replace(/"/g, '""')}"`;
     }
 
+    // Master list of all possible clinical fields for consistent CSV formatting
+    const ALL_CLINICAL_FIELDS = [
+        'timestamp', 'date', 'start_time', 'treating_physician', 'session_modality', 'planned_duration',
+        'uhid', 'name', 'age', 'sex', 'diagnosis', 'diabetes', 'dialysis_frequency', 'tx_vintage', 'type_of_access', 'anticoagulation',
+        'last_blood_transfusion_date', 'last_blood_transfusion_amount', 'comorbidities',
+        'dialysate_temp', 'dialysate_na', 'pre_hd_bp_meds', 'target_uf_volume', 'start_sbp', 'start_dbp', 'pulse_rate', 
+        'ejection_fraction', 'predialysis_weight', 'patient_dry_weight', 'last_post_dialysis_weight',
+        'last_creatinine', 'baseline_creatinine', 'albumin', 'hematocrit', 'hemoglobin',
+        'planned_transfusion', 'planned_prbc', 'planned_transfusion_start', 'planned_transfusion_end', 'planned_transfusion_rate',
+        'idh_occurred', 'prev_idh', 'periodic_logs', 'clinical_events'
+    ];
+
+    function formatComplexData(key, val) {
+        if ((key === 'periodic_logs' || key === 'clinical_events') && Array.isArray(val)) {
+            return val.map(item => {
+                return Object.entries(item)
+                    .filter(([k]) => !k.startsWith('_'))
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join(' | ');
+            }).join(' || ');
+        }
+        return val;
+    }
+
     // Export to CSV
     exportBtn.addEventListener('click', async () => {
         let records = [];
@@ -636,10 +665,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Get all unique keys across all records to ensure column alignment
-        const allKeys = new Set();
-        records.forEach(rec => Object.keys(rec).forEach(k => allKeys.add(k)));
-        const headers = Array.from(allKeys);
+        // Use the master list for headers
+        const headers = ALL_CLINICAL_FIELDS;
 
         const csvRows = [];
         // Add header row
@@ -647,7 +674,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Add data rows
         records.forEach(row => {
-            const values = headers.map(header => escapeCSV(row[header]));
+            const values = headers.map(header => {
+                let val = row[header];
+                val = formatComplexData(header, val);
+                return escapeCSV(val);
+            });
             csvRows.push(values.join(','));
         });
 
@@ -657,7 +688,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', `turbidex_research_data_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', `turbidex_research_all_data_${new Date().toISOString().split('T')[0]}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -847,15 +878,39 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="margin-top: 2rem; display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
                 <button type="button" class="btn-export" id="downloadSingleCsv" style="background-color: var(--primary-color);">Download Session (CSV)</button>
                 <button type="button" class="btn-export" id="downloadSingleJson" style="background-color: #8e44ad;">Download Session (JSON)</button>
+                <button type="button" class="btn-primary" id="deleteSessionBtn" style="background-color: #e74c3c;">Delete Session</button>
                 <button type="button" class="btn-primary" onclick="this.closest('#sessionModal').style.display = 'none'" style="background-color: #95a5a6;">Close Archive View</button>
             </div>
         `;
 
+        // Handle Session Deletion
+        document.getElementById('deleteSessionBtn').addEventListener('click', async () => {
+            if (confirm(`⚠️ PERMANENT ACTION: Are you sure you want to delete the session for ${session.name || 'this patient'} from the cloud? This cannot be undone.`)) {
+                try {
+                    await deleteDoc(doc(db, "sessions", session.id));
+                    showToast('Session deleted successfully', "#e74c3c");
+                    sessionModal.style.display = 'none';
+                    // Refresh the dashboard list
+                    fetchDashboardSessions();
+                    // Also refresh patient selector
+                    loadSavedPatients();
+                } catch (e) {
+                    console.error("Delete failed:", e);
+                    alert("Failed to delete session: " + e.message);
+                }
+            }
+        });
+
         // Handle Single Session CSV Export
         document.getElementById('downloadSingleCsv').addEventListener('click', () => {
-            const keys = Object.keys(session).filter(k => k !== 'id');
-            const row = keys.map(k => escapeCSV(session[k])).join(',');
-            const csvContent = keys.map(k => escapeCSV(k)).join(',') + '\n' + row;
+            const headers = ALL_CLINICAL_FIELDS;
+            const values = headers.map(header => {
+                let val = session[header];
+                val = formatComplexData(header, val);
+                return escapeCSV(val);
+            }).join(',');
+
+            const csvContent = headers.map(h => escapeCSV(h)).join(',') + '\n' + values;
             
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
