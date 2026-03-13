@@ -59,10 +59,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const countEventsEl = document.getElementById('count_events');
     const timerEl = document.getElementById('session_timer');
     let sessionStartTime = null;
+    let periodicLogs = [];
+    let events = [];
 
     function updateDashboard() {
-        if (countVitalsEl) countVitalsEl.textContent = periodicLogs.length;
-        if (countEventsEl) countEventsEl.textContent = events.length;
+        // Calculate counts based on research flags
+        const mCount = periodicLogs.filter(l => l._isMachine).length;
+        const vCount = periodicLogs.filter(l => l._isVitals).length;
+        const eCount = events.length;
+
+        if (countVitalsEl) countVitalsEl.textContent = mCount + vCount;
+        if (countEventsEl) countEventsEl.textContent = eCount;
         
         // Autosave current state to localStorage
         saveActiveSession();
@@ -194,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Event Logger Logic
-    let events = [];
+    // Quick-tap Event Handlers
     const eventTimeInput = document.getElementById('event_time');
     const eventTypeSelect = document.getElementById('event_type');
     const eventDetailsInput = document.getElementById('event_details');
@@ -360,7 +367,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Periodic Logger Logic
-    let periodicLogs = [];
     const addLogBtn = document.getElementById('addLogBtn');
     const periodicLogList = document.getElementById('periodicLogList');
     const emptyPeriodicRow = document.getElementById('emptyPeriodicRow');
@@ -452,8 +458,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addLogBtn) {
         // Auto-calculate UFR/CumUF helper
         function suggestMachineValues() {
-            const targetUf = parseFloat(document.querySelector('input[name="target_uf_volume"]').value);
-            const durationStr = document.querySelector('input[name="planned_duration"]').value;
+            const targetUfEl = document.querySelector('input[name="target_uf_volume"]');
+            const durationEl = document.querySelector('input[name="planned_duration"]');
+            
+            const targetUf = targetUfEl ? parseFloat(targetUfEl.value) : NaN;
+            const durationStr = durationEl ? durationEl.value : "";
             const durationArr = (durationStr || "").match(/\d+/);
             const duration = durationArr ? parseFloat(durationArr[0]) : 4;
             
@@ -467,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Estimate Cum UF based on time passed
                 if (sessionStartTime) {
                     const hoursPassed = (new Date() - sessionStartTime) / (1000 * 60 * 60);
-                    if (logCumUf && !logCumUf.value) logCumUf.value = Math.round(ufr * hoursPassed);
+                    if (logCumUf && !logCumUf.value) logCumUf.value = Math.max(0, Math.round(ufr * hoursPassed));
                 }
             }
         }
