@@ -743,7 +743,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let processedVal = val;
         // Backward compatibility: If it's a string that looks like a JSON array, parse it
-        if (typeof val === 'string' && val.startsWith('[') && val.endsWith(']')) {
+        if (typeof val === 'string' && val.trim().startsWith('[') && val.trim().endsWith(']')) {
             try { processedVal = JSON.parse(val); } catch(e) { processedVal = val; }
         }
 
@@ -762,13 +762,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return processedVal.map(item => {
                 return fieldOrder
-                    .filter(f => item[f] !== undefined && item[f] !== null && item[f] !== '')
+                    .filter(f => item[f] !== undefined && item[f] !== null && String(item[f]).trim() !== '')
                     .map(f => `${labels[f] || f}: ${item[f]}`)
                     .join(' | ');
             }).join(' || ');
         }
         
-        // Handle standard arrays like comorbidities/symptoms (JSON strings or native arrays)
+        // Handle standard arrays like comorbidities/symptoms (native arrays)
         if (Array.isArray(processedVal)) {
             return processedVal.join(' | ');
         }
