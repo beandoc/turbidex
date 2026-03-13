@@ -55,6 +55,9 @@
                         </div>
                     </div>
                 </div>
+                <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+                  <button type="button" class="btn-primary next-tab-btn" data-next="demographics">Save & Next</button>
+                </div>
             </div>
 
             <!-- TAB 2: Patient Info -->
@@ -141,7 +144,9 @@
                 </div>
 
                 </div>
-            </div>
+                <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+                  <button type="button" class="btn-primary next-tab-btn" data-next="vitals">Save & Next</button>
+                </div>
             </div>
 
             <!-- TAB 3: Pre-HD & Labs -->
@@ -225,6 +230,9 @@
                             <input type="number" step="0.1" name="hemoglobin">
                         </div>
                     </div>
+                </div>
+                <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
+                    <button type="button" class="btn-primary next-tab-btn" data-next="intradialytic">Save & Next</button>
                 </div>
             </div>
 
@@ -459,14 +467,18 @@
                             <input type="number" step="1" name="planned_transfusion_rate" placeholder="e.g. 120">
                         </div>
                     </div>
+                <div class="actions" style="margin-top: 3rem; border-top: 2px solid #eee; padding-top: 2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <button type="button" class="btn-secondary" id="resetBtn" style="background-color: #95a5a6;">Clear Form / New Patient</button>
+                        </div>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <button type="button" class="btn-export" id="exportBtn">Export to CSV</button>
+                            <button type="button" class="btn-export" id="exportJsonBtn" style="background-color: #8e44ad;">Export to JSON</button>
+                            <button type="submit" class="btn-primary" id="saveLogBtn" style="min-width: 200px;">Save & Finalize Session</button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="actions">
-                <button type="button" class="btn-secondary" id="resetBtn">Cancel / Clear</button>
-                <button type="button" class="btn-export" id="exportBtn">Export to CSV</button>
-                <button type="button" class="btn-export" id="exportJsonBtn" style="background-color: #8e44ad;">Export to JSON</button>
-                <button type="submit" class="btn-primary" id="saveLogBtn">Save Patient Record</button>
             </div>
         </form>
     </div>

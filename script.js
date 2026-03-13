@@ -16,6 +16,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tab.classList.add('active');
             document.getElementById(target).classList.add('active');
+            
+            // Scroll to the top when switching tabs
+            window.scrollTo(0, 0);
+        });
+    });
+
+    // Save & Next button logic
+    const nextTabBtns = document.querySelectorAll('.next-tab-btn');
+    nextTabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const nextTabId = btn.getAttribute('data-next');
+            const targetTab = document.querySelector(`.tab-btn[data-tab="${nextTabId}"]`);
+            if (targetTab) {
+                targetTab.click(); // Trigger the existing tab click logic
+            }
         });
     });
 
