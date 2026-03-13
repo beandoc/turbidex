@@ -19,6 +19,91 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- LIVE PERSISTENCE & DASHBOARD ---
+    const countVitalsEl = document.getElementById('count_machine_logs');
+    const countEventsEl = document.getElementById('count_events');
+    const timerEl = document.getElementById('session_timer');
+    let sessionStartTime = null;
+
+    function updateDashboard() {
+        if (countVitalsEl) countVitalsEl.textContent = periodicLogs.length;
+        if (countEventsEl) countEventsEl.textContent = events.length;
+        
+        // Autosave current state to localStorage
+        saveActiveSession();
+    }
+
+    function saveActiveSession() {
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+        data._periodicLogs = periodicLogs;
+        data._events = events;
+        data._sessionStartTime = sessionStartTime;
+        localStorage.setItem('turbidex_active_session', JSON.stringify(data));
+    }
+
+    function restoreActiveSession() {
+        const saved = localStorage.getItem('turbidex_active_session');
+        if (!saved) return;
+
+        try {
+            const data = JSON.parse(saved);
+            
+            // Restore form fields
+            Object.keys(data).forEach(key => {
+                if (key.startsWith('_')) return;
+                const field = form.querySelector(`[name="${key}"]`);
+                if (field) {
+                    if (field.type === 'radio') {
+                        const rb = form.querySelector(`input[name="${key}"][value="${data[key]}"]`);
+                        if (rb) rb.checked = true;
+                    } else {
+                        field.value = data[key];
+                    }
+                }
+            });
+
+            // Restore logs
+            if (data._periodicLogs) periodicLogs = data._periodicLogs;
+            if (data._events) events = data._events;
+            if (data._sessionStartTime) sessionStartTime = new Date(data._sessionStartTime);
+
+            renderEvents();
+            renderPeriodicLogs();
+            updateDashboard();
+            
+            // Show notification
+            const toast = document.createElement('div');
+            toast.style = "position: fixed; bottom: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 5px; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.1);";
+            toast.textContent = "Unfinished session restored automatically!";
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+
+        } catch(e) { console.error("Restore failed:", e); }
+    }
+
+    // Timer logic
+    setInterval(() => {
+        if (!timerEl) return;
+        if (periodicLogs.length > 0 || events.length > 0) {
+            if (!sessionStartTime) sessionStartTime = new Date();
+            const now = new Date();
+            const diff = Math.floor((now - sessionStartTime) / 1000);
+            const h = String(Math.floor(diff / 3600)).padStart(2, '0');
+            const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+            const s = String(diff % 60).padStart(2, '0');
+            timerEl.textContent = `${h}:${m}:${s}`;
+        }
+    }, 1000);
+
+    // Trigger restore on load
+    restoreActiveSession();
+
+    // Autosave on any form interaction
+    form.addEventListener('input', () => {
+        saveActiveSession();
+    });
+
     // Toggle planned blood transfusion details
     const plannedTransfusionSelect = document.getElementById('planned_transfusion');
     const plannedTransfusionDetails = document.getElementById('planned_transfusion_details');
@@ -101,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         eventLogJsonInput.value = JSON.stringify(events);
+        updateDashboard();
     }
 
     addEventBtn.addEventListener('click', () => {
@@ -176,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
             periodicLogList.appendChild(emptyPeriodicRow);
             emptyPeriodicRow.style.display = 'table-row';
             periodicLogJsonInput.value = '[]';
+            updateDashboard();
             return;
         }
 
@@ -222,6 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         periodicLogJsonInput.value = JSON.stringify(periodicLogs);
+        updateDashboard();
     }
 
     if (addLogBtn) {
@@ -385,6 +473,9 @@ document.addEventListener('DOMContentLoaded', () => {
             renderEvents();
             periodicLogs = [];
             renderPeriodicLogs();
+            localStorage.removeItem('turbidex_active_session');
+            sessionStartTime = null;
+            updateDashboard();
         }
     });
 
@@ -412,6 +503,10 @@ document.addEventListener('DOMContentLoaded', () => {
             timestamp: new Date().toISOString()
         });
         localStorage.setItem('turbidex_records', JSON.stringify(records));
+        
+        // Clear active session once finalized
+        localStorage.removeItem('turbidex_active_session');
+        sessionStartTime = null;
 
         // Refresh dropdown
         loadSavedPatients();

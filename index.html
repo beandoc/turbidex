@@ -46,6 +46,10 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label>Planned HD Duration</label>
+                            <input type="text" name="planned_duration" value="4 Hrs">
+                        </div>
+                        <div class="form-group">
                             <label>Treating Physician</label>
                             <input type="text" name="treating_physician" value="Dr sachin">
                         </div>
@@ -227,6 +231,17 @@
             <!-- TAB 4: Intradialytic Events -->
             <div id="intradialytic" class="tab-content">
                 <div class="form-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #2c3e50; color: white; padding: 0.75rem 1.25rem; border-radius: 8px; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <span style="font-size: 0.85rem; background: #e74c3c; padding: 2px 8px; border-radius: 4px; font-weight: bold; animation: pulse 2s infinite;">LIVE SESSION</span>
+                            <span id="session_timer" style="font-family: monospace; font-size: 1.1rem; border-left: 1px solid #555; padding-left: 15px;">00:00:00</span>
+                        </div>
+                        <div style="display: flex; gap: 20px; font-size: 0.9rem;">
+                            <span>Machine Logs: <strong id="count_machine_logs" style="color: #3498db;">0</strong></span>
+                            <span>Clinical Events: <strong id="count_events" style="color: #f39c12;">0</strong></span>
+                        </div>
+                    </div>
+
                     <h2>Continuous Dialysis Metrics & Vitals Log (Macro-Hemodynamics)</h2>
                     
                     <div style="background: #eef2f5; padding: 1.25rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #cbd5e1;">
