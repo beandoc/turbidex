@@ -340,6 +340,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // Enforcement of high-quality research data: Check if vitals are missing
+            if (!ufr && !qb && !cumUf && !infusion) {
+                alert('Informative Machine Logs require at least one machine parameter (UFR, Qb, or UF).');
+                return;
+            }
+
             periodicLogs.push({
                 time,
                 ufr: ufr || '-',
