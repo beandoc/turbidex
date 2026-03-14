@@ -606,6 +606,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
+                // Auto-fill Comorbidities (Checkboxes)
+                const comorbBoxes = document.querySelectorAll(`input[name="comorbidities"]`);
+                const savedComorbs = Array.isArray(p.comorbidities) ? p.comorbidities : [];
+                comorbBoxes.forEach(box => {
+                    box.checked = savedComorbs.includes(box.value);
+                });
+
+                // SAFETY: Clear CURRENT session-specific data (BP, Pulse, Logs)
+                // This prevents data from a PREVIOUS session from bleeding into this patient's new session.
+                if (document.querySelector('input[name="start_sbp"]')) document.querySelector('input[name="start_sbp"]').value = '';
+                if (document.querySelector('input[name="start_dbp"]')) document.querySelector('input[name="start_dbp"]').value = '';
+                if (document.querySelector('input[name="pulse_rate"]')) document.querySelector('input[name="pulse_rate"]').value = '';
+                
+                periodicLogs = [];
+                events = [];
+                sessionStartTime = null;
+                renderPeriodicLogs();
+                renderEvents();
+                updateDashboard();
+
                 // Show notification
                 showToast(`Loaded clinical baseline for: ${selectedName}`, "#3498db");
             } else {
@@ -614,6 +634,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (document.querySelector('input[name="diagnosis"]')) document.querySelector('input[name="diagnosis"]').value = 'CKD5D';
                 const preIdhRbs = document.querySelectorAll(`input[name="prev_idh"]`);
                 preIdhRbs.forEach(rb => rb.checked = false);
+                
+                const comorbBoxes = document.querySelectorAll(`input[name="comorbidities"]`);
+                comorbBoxes.forEach(box => box.checked = false);
+
+                periodicLogs = [];
+                events = [];
+                sessionStartTime = null;
+                renderPeriodicLogs();
+                renderEvents();
+                updateDashboard();
             }
         });
     }
