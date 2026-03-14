@@ -12,6 +12,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Tab Switching Logic
     const actionsArea = document.querySelector('.actions');
     
+    function initNewSessionTime() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
+        const hours = String(now.getHours()).padStart(2, '0');
+        const mins = String(now.getMinutes()).padStart(2, '0');
+        const timeStr = `${hours}:${mins}`;
+
+        const dateInput = form.querySelector('input[name="date"]');
+        const timeInput = form.querySelector('input[name="start_time"]');
+        
+        if (dateInput) dateInput.value = dateStr;
+        if (timeInput) timeInput.value = timeStr;
+    }
+    
     function toggleActionsVisibility(tabId) {
         if (!actionsArea) return;
         // Hide global actions on the first 3 "setup" tabs
@@ -86,7 +104,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function restoreActiveSession() {
         const saved = localStorage.getItem('turbidex_active_session');
-        if (!saved) return;
+        if (!saved) {
+            initNewSessionTime();
+            return;
+        }
 
         try {
             const data = JSON.parse(saved);
@@ -631,6 +652,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Clear the auto-fill fields if 'new profile' is chosen
                 form.reset();
+                initNewSessionTime();
                 if (document.querySelector('input[name="diagnosis"]')) document.querySelector('input[name="diagnosis"]').value = 'CKD5D';
                 const preIdhRbs = document.querySelectorAll(`input[name="prev_idh"]`);
                 preIdhRbs.forEach(rb => rb.checked = false);
@@ -660,6 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resetBtn.addEventListener('click', () => {
         if (confirm('Are you sure you want to clear all data in this form?')) {
             form.reset();
+            initNewSessionTime();
             events = [];
             renderEvents();
             periodicLogs = [];
